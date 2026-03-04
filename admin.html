@@ -422,8 +422,9 @@ async function searchPok() {
       if (setFilter) qStr += ` set.id:${setFilter}`;
     }
 
-    const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(qStr)}&pageSize=20&orderBy=-set.releaseDate`;
-    const r = await fetch(url, { headers: { 'X-Api-Key': POK_KEY } });
+    const apiUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(qStr)}&pageSize=20&orderBy=-set.releaseDate`;
+    const url = `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`;
+    const r = await fetch(url);
     const data = await r.json();
 
     if (!data.data || data.data.length === 0) {
