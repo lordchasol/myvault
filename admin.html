@@ -416,7 +416,21 @@ async function searchPok() {
       headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
       body: JSON.stringify({ query, setId: setFilter || null }),
     });
-    const data = await r.json();
+
+    const raw = await r.text(); // Lire comme texte d'abord
+    console.log('Edge Function response:', r.status, raw); // Debug dans F12
+
+    let data;
+    try { data = JSON.parse(raw); } catch {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Réponse invalide : ${raw.slice(0,200)}</div>`;
+      return;
+    }
+
+    if (data.error) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur fonction : ${data.error}</div>`;
+      countEl.textContent = 'Erreur';
+      return;
+    }
 
     if (!data.data || data.data.length === 0) {
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"<br>Essaie un nom anglais ou ajoute un code set</div>`;
