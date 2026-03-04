@@ -410,23 +410,13 @@ async function searchPok() {
   grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spin"></div>Recherche en cours...</div>`;
 
   try {
-    // Construire la requête : nom OU numéro
-    const isNumber = /^[0-9TG]/.test(query);
-    let qStr;
-    if (isNumber) {
-      const cleanNum = query.split('/')[0].replace(/^0+(?=\d)/, '');
-      qStr = `number:${cleanNum}`;
-      if (setFilter) qStr += ` set.id:${setFilter}`;
-    } else {
-      qStr = `name:${query}*`;
-      if (setFilter) qStr += ` set.id:${setFilter}`;
-    }
-
-    const apiUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(qStr)}&pageSize=20&orderBy=-set.releaseDate`;
-    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-    const r = await fetch(url);
-    const wrapper = await r.json();
-    const data = JSON.parse(wrapper.contents);
+    const url = 'https://onhlizqtitavbeucilqf.supabase.co/functions/v1/smart-task';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+      body: JSON.stringify({ query, setId: setFilter || null }),
+    });
+    const data = await r.json();
 
     if (!data.data || data.data.length === 0) {
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"<br>Essaie un nom anglais ou ajoute un code set</div>`;
