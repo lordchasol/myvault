@@ -283,9 +283,40 @@ const ADMIN_HASH = 'c118b7024e6749102709e1ea28bbf4080d7c8ca1ca0e98804f4271f3d187
 
 const sbH = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
 
-// ══════════════════════════════════════════
-// AUTH
-// ══════════════════════════════════════════
+// Dictionnaire total cartes → set TCGdex
+// Le total imprimé sur la carte identifie le set
+const TOTAL_TO_SET = {
+  // Scarlet & Violet
+  '258':'sv1','193':'sv2','182':'sv4','167':'sv5','162':'sv6','142':'sv6',
+  '165':'sv3pt5','197':'sv3','151':'sv3pt5','091':'svp','092':'svp',
+  '064':'sv4pt5','131':'sv7','177':'sv8','194':'sv8pt5',
+  // Sword & Shield
+  '202':'swsh1','192':'swsh2','189':'swsh3','185':'swsh4','163':'swsh5',
+  '198':'swsh6','234':'swsh7','274':'swsh8','216':'swsh9','184':'swsh10',
+  '196':'swsh11','195':'swsh12','217':'swsh12pt5',
+  '073':'swsh35','078':'swsh45','093':'swsh75',
+  // Sun & Moon
+  '149':'sm1','145':'sm2','147':'sm3','111':'sm4','147':'sm5',
+  '168':'sm6','168':'sm7','214':'sm8','236':'sm9','214':'sm10',
+  '236':'sm11','173':'sm12','095':'smp',
+  // XY
+  '146':'xy1','106':'xy2','119':'xy3','111':'xy4','108':'xy5',
+  '122':'xy6','98':'xy7','124':'xy8','117':'xy9','162':'xy10',
+  '114':'xy11','114':'xy12','131':'xyp',
+  // Black & White
+  '114':'bw1','102':'bw2','99':'bw3','101':'bw4','108':'bw5',
+  '149':'bw6','135':'bw7','128':'bw8','101':'bw9','101':'bw10',
+  '113':'bw11','113':'bwp',
+  // HeartGold SoulSilver
+  '123':'hgss1','102':'hgss2','102':'hgss3','90':'hgss4',
+  // Trainer Galleries
+  '030':'swsh9tg','040':'swsh10tg',
+};
+
+function getSetFromTotal(total) {
+  return TOTAL_TO_SET[total.padStart(3,'0')] || TOTAL_TO_SET[total] || null;
+}
+
 async function sha256(msg) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -410,15 +441,23 @@ async function searchPok() {
   grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spin"></div>Recherche en cours...</div>`;
 
   try {
-    const isNumber = /^[0-9TG]/.test(query);
+    const isNumber = /^\d{1,3}(\/\d+)?$|^TG\d+/i.test(query);
     let url;
 
     if (isNumber) {
-      const cleanNum = query.split('/')[0].replace(/^0+(?=\d)/, '');
-      // Cherche par numéro dans tous les sets
-      url = `https://api.tcgdex.net/v2/en/cards?number=${cleanNum}`;
+      const parts = query.split('/');
+      const localId = parts[0]; // garder les zéros : "025"
+      const total   = parts[1] ? parts[1].replace(/^0+(?=\d)/,'') : null;
+      const setId   = total ? getSetFromTotal(total) : null;
+
+      if (setId) {
+        // Endpoint direct : retourne la carte exacte
+        url = `https://api.tcgdex.net/v2/en/cards/${setId}-${localId}`;
+      } else {
+        // Pas de total connu → chercher par localId dans tous les sets
+        url = `https://api.tcgdex.net/v2/en/cards?localId=${localId.replace(/^0+(?=\d)/,'')}`;
+      }
     } else {
-      // Cherche par nom
       url = `https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(query)}`;
     }
 
@@ -427,7 +466,11 @@ async function searchPok() {
     console.log('TCGdex response:', r.status, raw.slice(0, 200));
 
     let cards;
-    try { cards = JSON.parse(raw); } catch {
+    try {
+      const parsed = JSON.parse(raw);
+      // TCGdex peut retourner un objet unique ou un tableau
+      cards = Array.isArray(parsed) ? parsed : (parsed.id ? [parsed] : []);
+    } catch {
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Réponse invalide du serveur</div>`;
       return;
     }
