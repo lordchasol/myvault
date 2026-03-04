@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyVault — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#080b10; --surface:#0e1420; --surface2:#141c2e;
+    --border:rgba(255,255,255,0.07); --accent:#c8f135;
+    --sol:#9945ff; --text:#e8eaf0; --muted:#5a6278;
+    --red:#ff6b6b; --green:#4ade80;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;}
+
+  /* ── LOGIN ── */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:380px;width:100%;text-align:center;}
+  .login-logo{font-size:22px;font-weight:800;margin-bottom:6px;}
+  .login-logo span{color:var(--accent);}
+  .login-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:28px;}
+  .login-err{color:var(--red);font-family:'DM Mono',monospace;font-size:11px;margin-bottom:12px;display:none;}
+
+  /* ── LAYOUT ── */
+  .app{display:none;min-height:100vh;}
+  .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;padding:24px 16px;display:flex;flex-direction:column;gap:4px;z-index:10;}
+  .sb-logo{font-size:16px;font-weight:800;padding:8px 12px;margin-bottom:16px;}
+  .sb-logo span{color:var(--accent);}
+  .sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:all .15s;border:none;background:none;width:100%;text-align:left;}
+  .sb-item:hover{background:rgba(255,255,255,.04);color:var(--text);}
+  .sb-item.active{background:rgba(200,241,53,.08);color:var(--accent);}
+  .sb-item .ico{font-size:16px;width:20px;text-align:center;}
+  .sb-bottom{margin-top:auto;}
+  .sb-back{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s;text-decoration:none;}
+  .sb-back:hover{color:var(--text);}
+
+  .main{margin-left:220px;padding:32px 36px;max-width:1100px;}
+
+  /* ── TOPBAR ── */
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+  .page-title{font-size:26px;font-weight:800;letter-spacing:-1px;}
+  .page-title span{color:var(--accent);}
+  .page-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:3px;}
+
+  /* ── INPUTS ── */
+  input,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;width:100%;}
+  input:focus,textarea:focus{border-color:rgba(200,241,53,.3);}
+  input::placeholder,textarea::placeholder{color:var(--muted);}
+  button{cursor:pointer;font-family:'Syne',sans-serif;border:none;}
+
+  .btn{padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;transition:all .15s;}
+  .btn-primary{background:var(--accent);color:#000;}
+  .btn-primary:hover{background:#d8ff50;}
+  .btn-ghost{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border);}
+  .btn-ghost:hover{background:rgba(255,255,255,.09);color:var(--text);}
+  .btn-danger{background:rgba(255,80,80,.1);color:var(--red);border:1px solid rgba(255,80,80,.2);}
+  .btn-danger:hover{background:rgba(255,80,80,.2);}
+
+  /* ── SEARCH BOX ── */
+  .search-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:24px;}
+  .search-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .search-row{display:flex;gap:10px;}
+  .search-row input{flex:1;}
+
+  /* ── SEARCH RESULTS ── */
+  .results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:28px;}
+  .result-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s;position:relative;}
+  .result-card:hover{border-color:rgba(200,241,53,.3);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.4);}
+  .result-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(200,241,53,.2);}
+  .result-card img{width:100%;aspect-ratio:2.5/3.5;object-fit:contain;background:var(--surface2);display:block;}
+  .result-info{padding:8px;}
+  .result-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
+  .result-set{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .result-num{font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);}
+  .result-check{position:absolute;top:6px;right:6px;width:20px;height:20px;background:var(--accent);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:11px;color:#000;font-weight:800;}
+  .result-card.selected .result-check{display:flex;}
+  .rarity-badge{position:absolute;top:6px;left:6px;font-family:'DM Mono',monospace;font-size:8px;padding:2px 5px;border-radius:3px;font-weight:700;}
+  .r-ex{background:rgba(200,241,53,.9);color:#000;}
+  .r-holo{background:rgba(245,200,66,.9);color:#000;}
+  .r-rare{background:rgba(91,140,255,.85);color:#fff;}
+  .r-sr{background:rgba(255,100,100,.85);color:#fff;}
+  .r-promo{background:rgba(153,69,255,.85);color:#fff;}
+  .r-common{background:rgba(90,98,120,.8);color:#ccc;}
+
+  /* ── COLLECTION LIST ── */
+  .collection{display:flex;flex-direction:column;gap:8px;}
+  .col-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;transition:all .15s;}
+  .col-card:hover{border-color:rgba(255,255,255,.12);}
+  .col-img{width:44px;height:60px;object-fit:contain;border-radius:6px;background:var(--surface2);flex-shrink:0;}
+  .col-info{flex:1;min-width:0;}
+  .col-name{font-size:13px;font-weight:700;margin-bottom:3px;}
+  .col-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+  .col-rarity{font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;flex-shrink:0;}
+
+  /* ── TABS ── */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px;}
+  .atab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;background:none;border-left:none;border-right:none;border-top:none;}
+  .atab.active{color:var(--text);border-bottom-color:var(--accent);}
+  .atab:hover{color:var(--text);}
+
+  /* ── STATS ── */
+  .stats{display:flex;gap:12px;margin-bottom:24px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;flex:1;}
+  .stat-n{font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:2px;}
+  .stat-l{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+
+  /* ── STATES ── */
+  .empty{text-align:center;padding:40px;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;}
+  .loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;padding:20px 0;}
+  .spin{width:16px;height:16px;border:2px solid rgba(153,69,255,.2);border-top-color:#9945ff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── TOAST ── */
+  .toast{position:fixed;bottom:26px;right:26px;background:var(--surface2);border:1px solid rgba(200,241,53,.2);border-radius:10px;padding:12px 16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+
+  /* ── OP FORM ── */
+  .op-form{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:24px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  .form-field label{display:block;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  select{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;width:100%;}
+
+  @media(max-width:768px){
+    .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:12px;}
+    .main{margin-left:0;padding:16px;}
+    .stats{flex-wrap:wrap;}
+    .form-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">My<span>Vault</span> ⚙</div>
+    <div class="login-sub">Console d'administration</div>
+    <div class="login-err" id="login-err">⚠ Mot de passe incorrect</div>
+    <input type="password" id="login-pwd" placeholder="Mot de passe..." style="margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%">Connexion →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo">My<span>Vault</span></div>
+    <button class="sb-item active" id="sb-pok" onclick="showPage('pok')"><span class="ico">⚡</span>Pokémon</button>
+    <button class="sb-item" id="sb-op" onclick="showPage('op')"><span class="ico">🏴‍☠️</span>One Piece</button>
+    <div class="sb-bottom">
+      <a class="sb-back" href="index.html">← Retour au site</a>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- PAGE POKÉMON -->
+    <div id="page-pok">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Pokémon <span>TCG</span></div>
+          <div class="page-sub">Recherche visuelle · Ajout en 1 clic</div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats">
+        <div class="stat"><div class="stat-n" id="pok-count">—</div><div class="stat-l">Cartes</div></div>
+        <div class="stat"><div class="stat-n" id="pok-ex">—</div><div class="stat-l">EX / SR</div></div>
+        <div class="stat"><div class="stat-n" id="pok-holo">—</div><div class="stat-l">Holo</div></div>
+        <div class="stat"><div class="stat-n" id="pok-promo">—</div><div class="stat-l">Promo</div></div>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="search-box">
+        <div class="search-label">🔍 Rechercher une carte à ajouter</div>
+        <div class="search-row">
+          <input id="pok-search" placeholder="Nom du Pokémon ou numéro (ex: Dracaufeu, 025, TG06)..."
+            oninput="debouncePokSearch()" onkeydown="if(event.key==='Enter')searchPok()"/>
+          <button class="btn btn-primary" onclick="searchPok()" style="white-space:nowrap">Rechercher</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:8px">
+          Optionnel — filtre par set : <span id="set-filter-tags" style="color:var(--accent)"></span>
+          <input id="pok-set" placeholder="Code set (ex: sv3, swsh4...)" style="display:inline-block;width:180px;margin-left:8px;padding:4px 10px;font-size:11px"/>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="pok-results-wrap" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)" id="pok-results-count"></div>
+          <div id="pok-add-wrap" style="display:none">
+            <button class="btn btn-primary" onclick="addSelectedPok()" id="pok-add-btn">+ Ajouter la sélection</button>
+          </div>
+        </div>
+        <div class="results-grid" id="pok-results"></div>
+      </div>
+
+      <!-- DIVIDER -->
+      <div style="border-top:1px solid var(--border);margin-bottom:24px"></div>
+
+      <!-- COLLECTION -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Collection actuelle</div>
+        <button class="btn btn-ghost" onclick="refreshPokCollection()" style="font-size:11px;padding:7px 14px">↺ Actualiser</button>
+      </div>
+      <div id="pok-collection"><div class="loading"><div class="spin"></div>Chargement...</div></div>
+    </div>
+
+    <!-- PAGE ONE PIECE -->
+    <div id="page-op" style="display:none">
+      <div class="topbar">
+        <div>
+          <div class="page-title">One Piece <span>TCG</span></div>
+          <div class="page-sub">Gestion manuelle de la collection</div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats">
+        <div class="stat"><div class="stat-n" id="op-count">—</div><div class="stat-l">Cartes</div></div>
+      </div>
+
+      <!-- FORM AJOUT -->
+      <div class="op-form">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px">+ Ajouter une carte One Piece</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Nom du personnage *</label>
+            <input id="op-name" placeholder="ex: Monkey D. Luffy"/>
+          </div>
+          <div class="form-field">
+            <label>Set / Extension *</label>
+            <input id="op-set" placeholder="ex: OP-01 Romance Dawn"/>
+          </div>
+          <div class="form-field">
+            <label>Prix affiché</label>
+            <input id="op-price" placeholder="ex: € 280"/>
+          </div>
+          <div class="form-field">
+            <label>Rareté</label>
+            <select id="op-rarity">
+              <option value="sr">Secret Rare (SR)</option>
+              <option value="holo">Holo Rare</option>
+              <option value="rare">Rare</option>
+              <option value="common">Common</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Emoji représentatif</label>
+            <input id="op-emoji" placeholder="ex: 🏴‍☠️ ⚔️ 🌊" style="font-size:18px"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addOpCard()" style="width:100%">+ Ajouter à la collection</button>
+      </div>
+
+      <!-- COLLECTION OP -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Collection actuelle</div>
+        <button class="btn btn-ghost" onclick="refreshOpCollection()" style="font-size:11px;padding:7px 14px">↺ Actualiser</button>
+      </div>
+      <div id="op-collection"><div class="loading"><div class="spin"></div>Chargement...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════
+const SB_URL = 'https://onhlizqtitavbeucilqf.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uaGxpenF0aXRhdmJldWNpbHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYzMTQsImV4cCI6MjA4ODIyMjMxNH0.-2OdJRVv1FIHXWoBubRuFthbmnvd53H4Pqjwc-HgYDU';
+const POK_KEY = 'a4a96fdc-94fd-4bfe-8b5b-648dc7419832';
+const ADMIN_HASH = 'c118b7024e6749102709e1ea28bbf4080d7c8ca1ca0e98804f4271f3d187b9e2';
+
+const sbH = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doLogin() {
+  const pwd = document.getElementById('login-pwd').value;
+  const hash = await sha256(pwd);
+  if (hash === ADMIN_HASH) {
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+    document.getElementById('login-pwd').value = '';
+  }
+}
+
+document.getElementById('login-pwd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function showPage(id) {
+  ['pok','op'].forEach(p => {
+    document.getElementById(`page-${p}`).style.display = p === id ? 'block' : 'none';
+    document.getElementById(`sb-${p}`).classList.toggle('active', p === id);
+  });
+}
+
+// ══════════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════════
+async function sbGet(table) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?select=*&order=created_at.asc`, { headers: sbH });
+  if (!r.ok) throw new Error('Fetch failed');
+  return r.json();
+}
+
+async function sbInsert(table, data) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ...sbH, 'Prefer': 'return=representation' },
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) throw new Error(`Insert failed: ${await r.text()}`);
+  return r.json();
+}
+
+async function sbDelete(table, id) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: sbH });
+  if (!r.ok) throw new Error('Delete failed');
+}
+
+// ══════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ══════════════════════════════════════════
+// RARETY HELPERS
+// ══════════════════════════════════════════
+function getRarityClass(r) {
+  if (!r) return 'r-common';
+  r = r.toLowerCase();
+  if (r.includes('amazing') || r.includes('radiant') || r.includes('special')) return 'r-sr';
+  if (r.includes('hyper') || r.includes('secret') || r.includes('gold')) return 'r-sr';
+  if (r.includes('ultra') || r.includes(' ex') || r.includes('vmax') || r.includes('vstar')) return 'r-ex';
+  if (r === 'ex' || r === 'sr') return 'r-ex';
+  if (r.includes('double') || r.includes('trainer gallery')) return 'r-holo';
+  if (r.includes('holo') || r.includes('rare holo')) return 'r-holo';
+  if (r.includes('rare')) return 'r-rare';
+  if (r.includes('promo')) return 'r-promo';
+  return 'r-common';
+}
+
+function getRarityLabel(r) {
+  if (!r) return 'COM';
+  r = r.toLowerCase();
+  if (r.includes('hyper') || r.includes('secret') || r.includes('gold')) return 'SR';
+  if (r.includes('ultra') || r.includes(' ex') || r.includes('vmax') || r.includes('vstar')) return 'EX';
+  if (r === 'ex' || r === 'sr') return 'EX';
+  if (r.includes('holo')) return 'HOLO';
+  if (r.includes('rare')) return 'RARE';
+  if (r.includes('promo')) return 'PROMO';
+  return 'COM';
+}
+
+// ══════════════════════════════════════════
+// POKÉMON — RECHERCHE VISUELLE
+// ══════════════════════════════════════════
+let selectedPokCards = new Map(); // id → card object
+let searchDebounce;
+
+function debouncePokSearch() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    const q = document.getElementById('pok-search').value.trim();
+    if (q.length >= 2) searchPok();
+  }, 500);
+}
+
+async function searchPok() {
+  const query = document.getElementById('pok-search').value.trim();
+  const setFilter = document.getElementById('pok-set').value.trim();
+  if (!query) return;
+
+  const wrap = document.getElementById('pok-results-wrap');
+  const grid = document.getElementById('pok-results');
+  const countEl = document.getElementById('pok-results-count');
+
+  wrap.style.display = 'block';
+  grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spin"></div>Recherche en cours...</div>`;
+
+  try {
+    // Construire la requête : nom OU numéro
+    const isNumber = /^[0-9TG]/.test(query);
+    let qStr;
+    if (isNumber) {
+      const cleanNum = query.split('/')[0].replace(/^0+(?=\d)/, '');
+      qStr = `number:${cleanNum}`;
+      if (setFilter) qStr += ` set.id:${setFilter}`;
+    } else {
+      qStr = `name:${query}*`;
+      if (setFilter) qStr += ` set.id:${setFilter}`;
+    }
+
+    const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(qStr)}&pageSize=20&orderBy=-set.releaseDate`;
+    const r = await fetch(url, { headers: { 'X-Api-Key': POK_KEY } });
+    const data = await r.json();
+
+    if (!data.data || data.data.length === 0) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"<br>Essaie un nom anglais ou ajoute un code set</div>`;
+      countEl.textContent = '0 résultat';
+      return;
+    }
+
+    countEl.textContent = `${data.data.length} résultat${data.data.length > 1 ? 's' : ''} — clique pour sélectionner`;
+    grid.innerHTML = '';
+
+    data.data.forEach(card => {
+      const rc = getRarityClass(card.rarity);
+      const rl = getRarityLabel(card.rarity);
+      const isSelected = selectedPokCards.has(card.id);
+      const el = document.createElement('div');
+      el.className = 'result-card' + (isSelected ? ' selected' : '');
+      el.innerHTML = `
+        <div class="result-check">✓</div>
+        <span class="rarity-badge ${rc}">${rl}</span>
+        <img src="${card.images.small}" alt="${card.name}" loading="lazy"/>
+        <div class="result-info">
+          <div class="result-name">${card.name}</div>
+          <div class="result-set">${card.set.name}</div>
+          <div class="result-num">#${card.number}</div>
+        </div>`;
+      el.addEventListener('click', () => toggleSelectPok(el, card));
+      grid.appendChild(el);
+    });
+  } catch (e) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur API : ${e.message}</div>`;
+  }
+}
+
+function toggleSelectPok(el, card) {
+  if (selectedPokCards.has(card.id)) {
+    selectedPokCards.delete(card.id);
+    el.classList.remove('selected');
+  } else {
+    selectedPokCards.set(card.id, card);
+    el.classList.add('selected');
+  }
+  const n = selectedPokCards.size;
+  const wrap = document.getElementById('pok-add-wrap');
+  const btn = document.getElementById('pok-add-btn');
+  wrap.style.display = n > 0 ? 'block' : 'none';
+  btn.textContent = n > 1 ? `+ Ajouter les ${n} cartes sélectionnées` : '+ Ajouter la carte sélectionnée';
+}
+
+async function addSelectedPok() {
+  if (selectedPokCards.size === 0) return;
+  const btn = document.getElementById('pok-add-btn');
+  btn.textContent = '⏳ Ajout en cours...';
+  btn.disabled = true;
+
+  let added = 0;
+  for (const [, card] of selectedPokCards) {
+    try {
+      await sbInsert('pok_cards', {
+        name: card.name,
+        set_name: card.set.name,
+        number: `${card.number}/${card.set.printedTotal}`,
+        rarity: card.rarity || 'common',
+        img: card.images.small,
+        price: null,
+      });
+      added++;
+    } catch(e) {
+      toast(`❌ Erreur pour ${card.name}`);
+    }
+  }
+
+  toast(`✅ ${added} carte${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''} !`);
+  selectedPokCards.clear();
+  document.getElementById('pok-add-wrap').style.display = 'none';
+  btn.textContent = '+ Ajouter la sélection';
+  btn.disabled = false;
+
+  // Réinitialiser les coches dans les résultats
+  document.querySelectorAll('.result-card.selected').forEach(el => el.classList.remove('selected'));
+
+  refreshPokCollection();
+}
+
+// ══════════════════════════════════════════
+// POKÉMON — COLLECTION
+// ══════════════════════════════════════════
+async function refreshPokCollection() {
+  const el = document.getElementById('pok-collection');
+  el.innerHTML = `<div class="loading"><div class="spin"></div>Chargement...</div>`;
+  try {
+    const cards = await sbGet('pok_cards');
+    renderPokCollection(cards);
+  } catch {
+    el.innerHTML = `<div class="empty" style="color:var(--red)">Erreur de chargement</div>`;
+  }
+}
+
+function renderPokCollection(cards) {
+  const el = document.getElementById('pok-collection');
+  // Stats
+  document.getElementById('pok-count').textContent = cards.length;
+  document.getElementById('pok-ex').textContent = cards.filter(c => ['ex','sr'].includes(getRarityClass(c.rarity).replace('r-',''))).length;
+  document.getElementById('pok-holo').textContent = cards.filter(c => getRarityClass(c.rarity) === 'r-holo').length;
+  document.getElementById('pok-promo').textContent = cards.filter(c => getRarityClass(c.rarity) === 'r-promo').length;
+
+  if (cards.length === 0) {
+    el.innerHTML = `<div class="empty">Aucune carte — utilise la recherche ci-dessus pour en ajouter</div>`;
+    return;
+  }
+  el.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'collection';
+  cards.forEach(c => {
+    const rc = getRarityClass(c.rarity);
+    const rl = getRarityLabel(c.rarity);
+    const row = document.createElement('div');
+    row.className = 'col-card';
+    row.innerHTML = `
+      <img class="col-img" src="${c.img}" alt="${c.name}"/>
+      <div class="col-info">
+        <div class="col-name">${c.name}</div>
+        <div class="col-meta">${c.number} · ${c.set_name}</div>
+      </div>
+      <span class="col-rarity ${rc}">${rl}</span>
+      <button class="btn btn-danger" style="padding:6px 10px;font-size:11px;margin-left:8px" data-id="${c.id}" data-name="${c.name}">✕</button>`;
+    row.querySelector('.btn-danger').addEventListener('click', async function() {
+      const id = this.dataset.id;
+      const name = this.dataset.name;
+      if (!confirm(`Supprimer "${name}" ?`)) return;
+      try {
+        await sbDelete('pok_cards', id);
+        toast(`🗑️ ${name} supprimé`);
+        refreshPokCollection();
+      } catch { toast('❌ Erreur suppression'); }
+    });
+    wrap.appendChild(row);
+  });
+  el.appendChild(wrap);
+}
+
+// ══════════════════════════════════════════
+// ONE PIECE — COLLECTION
+// ══════════════════════════════════════════
+async function refreshOpCollection() {
+  const el = document.getElementById('op-collection');
+  el.innerHTML = `<div class="loading"><div class="spin"></div>Chargement...</div>`;
+  try {
+    const cards = await sbGet('op_cards');
+    renderOpCollection(cards);
+  } catch (e) {
+    // Table peut ne pas exister encore
+    el.innerHTML = `<div class="empty">Aucune carte One Piece — la table sera créée automatiquement lors du premier ajout</div>`;
+    document.getElementById('op-count').textContent = 0;
+  }
+}
+
+function renderOpCollection(cards) {
+  const el = document.getElementById('op-collection');
+  document.getElementById('op-count').textContent = cards.length;
+  if (cards.length === 0) {
+    el.innerHTML = `<div class="empty">Aucune carte One Piece</div>`;
+    return;
+  }
+  el.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'collection';
+  cards.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'col-card';
+    row.innerHTML = `
+      <div style="width:44px;height:60px;background:var(--surface2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">${c.emoji || '🃏'}</div>
+      <div class="col-info">
+        <div class="col-name">${c.name}</div>
+        <div class="col-meta">${c.set_name}${c.price ? ' · ' + c.price : ''}</div>
+      </div>
+      <span class="col-rarity r-${c.rarity || 'common'}">${(c.rarity||'com').toUpperCase()}</span>
+      <button class="btn btn-danger" style="padding:6px 10px;font-size:11px;margin-left:8px" data-id="${c.id}" data-name="${c.name}">✕</button>`;
+    row.querySelector('.btn-danger').addEventListener('click', async function() {
+      const id = this.dataset.id;
+      const name = this.dataset.name;
+      if (!confirm(`Supprimer "${name}" ?`)) return;
+      try {
+        await sbDelete('op_cards', id);
+        toast(`🗑️ ${name} supprimé`);
+        refreshOpCollection();
+      } catch { toast('❌ Erreur suppression'); }
+    });
+    wrap.appendChild(row);
+  });
+  el.appendChild(wrap);
+}
+
+async function addOpCard() {
+  const name = document.getElementById('op-name').value.trim();
+  const setName = document.getElementById('op-set').value.trim();
+  const price = document.getElementById('op-price').value.trim();
+  const rarity = document.getElementById('op-rarity').value;
+  const emoji = document.getElementById('op-emoji').value.trim() || '🃏';
+
+  if (!name || !setName) { toast('⚠ Nom et set requis'); return; }
+
+  try {
+    await sbInsert('op_cards', { name, set_name: setName, price: price || null, rarity, emoji });
+    toast(`✅ ${name} ajouté !`);
+    document.getElementById('op-name').value = '';
+    document.getElementById('op-set').value = '';
+    document.getElementById('op-price').value = '';
+    document.getElementById('op-emoji').value = '';
+    refreshOpCollection();
+  } catch (e) {
+    // Si la table n'existe pas, on l'indique
+    if (e.message.includes('42P01') || e.message.includes('does not exist')) {
+      toast('⚠ Crée d\'abord la table op_cards dans Supabase SQL Editor');
+    } else {
+      toast('❌ Erreur : ' + e.message);
+    }
+  }
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+function initApp() {
+  refreshPokCollection();
+  refreshOpCollection();
+}
+</script>
+</body>
+</html>
