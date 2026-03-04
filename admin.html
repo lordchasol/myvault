@@ -599,26 +599,6 @@ function showManualForm(query, grid, countEl) {
 }
 
 
-  const name    = document.getElementById('manual-name')?.value.trim();
-  const setName = document.getElementById('manual-set')?.value.trim() || 'Inconnu';
-  const number  = document.getElementById('manual-num')?.value.trim() || '';
-  const rarity  = document.getElementById('manual-rarity')?.value || 'common';
-  const img     = document.getElementById('manual-img')?.value.trim() || '';
-
-  if (!name) { toast('⚠ Le nom du Pokémon est requis'); return; }
-
-  try {
-    await sbInsert('pok_cards', { name, set_name: setName, number, rarity, img: img || null, price: null });
-    toast(`✅ ${name} ajouté manuellement !`);
-    document.getElementById('pok-results-wrap').style.display = 'none';
-    document.getElementById('pok-search').value = '';
-    refreshPokCollection();
-  } catch (e) {
-    toast('❌ Erreur : ' + e.message);
-  }
-}
-
-
 async function addManualCard() {
   const name    = document.getElementById('manual-name')?.value.trim();
   const setName = document.getElementById('manual-set')?.value.trim() || 'Inconnu';
