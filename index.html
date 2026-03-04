@@ -594,12 +594,14 @@ function buildDomainCard(grid, d, i) {
     ${priceBlock}
     ${metaBlock}
     <div class="dfoot">
-      <button class="dbtn dbtn-p" data-domain="${d.name}">💬 Faire une offre</button>
-      <button class="dbtn dbtn-s" data-domain="${d.name}">🔗 sns.id</button>
+      <button class="dbtn dbtn-p" data-domain="${d.name}">🛒 Acheter sur sns.id</button>
+      <button class="dbtn dbtn-s" data-domain="${d.name}">💬 Contacter</button>
     </div>`;
 
-  el.querySelector('.dbtn-p').addEventListener('click', () => openModal(d.name + '.sol'));
-  el.querySelector('.dbtn-s').addEventListener('click', () => window.open('https://sns.id/domain/' + d.name, '_blank'));
+  // Bouton principal → page d'achat / offre onchain sur sns.id
+  el.querySelector('.dbtn-p').addEventListener('click', () => window.open('https://sns.id/domain/' + d.name, '_blank'));
+  // Bouton contact → Twitter DM pré-rempli
+  el.querySelector('.dbtn-s').addEventListener('click', () => window.open('https://twitter.com/messages/compose?recipient_id=Renato42084&text=' + encodeURIComponent('Offre pour : ' + d.name + '.sol'), '_blank'));
   grid.appendChild(el);
 }
 
