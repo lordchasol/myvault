@@ -283,38 +283,47 @@ const ADMIN_HASH = 'c118b7024e6749102709e1ea28bbf4080d7c8ca1ca0e98804f4271f3d187
 
 const sbH = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
 
-// Dictionnaire total cartes → set TCGdex
-// Le total imprimé sur la carte identifie le set
-const TOTAL_TO_SET = {
-  // Scarlet & Violet
-  '258':'sv1','193':'sv2','182':'sv4','167':'sv5','162':'sv6','142':'sv6',
-  '165':'sv3pt5','197':'sv3','151':'sv3pt5','091':'svp','092':'svp',
-  '064':'sv4pt5','131':'sv7','177':'sv8','194':'sv8pt5',
-  // Sword & Shield
-  '202':'swsh1','192':'swsh2','189':'swsh3','185':'swsh4','163':'swsh5',
-  '198':'swsh6','234':'swsh7','274':'swsh8','216':'swsh9','184':'swsh10',
-  '196':'swsh11','195':'swsh12','217':'swsh12pt5',
-  '073':'swsh35','078':'swsh45','093':'swsh75',
-  // Sun & Moon
-  '149':'sm1','145':'sm2','147':'sm3','111':'sm4','147':'sm5',
-  '168':'sm6','168':'sm7','214':'sm8','236':'sm9','214':'sm10',
-  '236':'sm11','173':'sm12','095':'smp',
-  // XY
-  '146':'xy1','106':'xy2','119':'xy3','111':'xy4','108':'xy5',
-  '122':'xy6','98':'xy7','124':'xy8','117':'xy9','162':'xy10',
-  '114':'xy11','114':'xy12','131':'xyp',
-  // Black & White
-  '114':'bw1','102':'bw2','99':'bw3','101':'bw4','108':'bw5',
-  '149':'bw6','135':'bw7','128':'bw8','101':'bw9','101':'bw10',
-  '113':'bw11','113':'bwp',
-  // HeartGold SoulSilver
-  '123':'hgss1','102':'hgss2','102':'hgss3','90':'hgss4',
-  // Trainer Galleries
-  '030':'swsh9tg','040':'swsh10tg',
-};
+// Dictionnaire dynamique total → [setId, setName] — chargé depuis TCGdex au démarrage
+let SETS_BY_TOTAL = {}; // { '185': [{id:'swsh4', name:'Vivid Voltage'}, ...] }
+let ALL_SETS = [];       // Liste complète des sets pour le select
 
-function getSetFromTotal(total) {
-  return TOTAL_TO_SET[total.padStart(3,'0')] || TOTAL_TO_SET[total] || null;
+async function loadAllSets() {
+  try {
+    // TCGdex expose tous les sets en anglais, japonais, français
+    const langs = ['en', 'fr', 'ja'];
+    const allSets = [];
+
+    for (const lang of langs) {
+      try {
+        const r = await fetch(`https://api.tcgdex.net/v2/${lang}/sets`);
+        if (!r.ok) continue;
+        const sets = await r.json();
+        if (Array.isArray(sets)) {
+          sets.forEach(s => {
+            const total = String(s.cardCount?.official || s.cardCount?.total || 0);
+            if (!SETS_BY_TOTAL[total]) SETS_BY_TOTAL[total] = [];
+            // Éviter les doublons (même setId)
+            if (!SETS_BY_TOTAL[total].find(x => x.id === s.id)) {
+              SETS_BY_TOTAL[total].push({ id: s.id, name: s.name, lang });
+            }
+            if (!allSets.find(x => x.id === s.id)) {
+              allSets.push({ id: s.id, name: s.name, lang, total });
+            }
+          });
+        }
+      } catch { /* ignorer erreurs par langue */ }
+    }
+
+    ALL_SETS = allSets.sort((a, b) => a.name.localeCompare(b.name));
+    console.log(`✅ ${ALL_SETS.length} sets chargés depuis TCGdex`);
+  } catch (e) {
+    console.warn('Impossible de charger les sets TCGdex:', e.message);
+  }
+}
+
+function getSetsFromTotal(total) {
+  const t = String(parseInt(total, 10)); // normaliser "185" → "185"
+  return SETS_BY_TOTAL[t] || SETS_BY_TOTAL[total] || [];
 }
 
 async function sha256(msg) {
@@ -446,18 +455,46 @@ async function searchPok() {
 
     if (isNumber) {
       const parts = query.split('/');
-      const localIdRaw = parts[0];
-      const localId = localIdRaw.replace(/^0+(?=\d)/, ''); // "025" → "25"
-      const total   = parts[1] ? parts[1].replace(/^0+(?=\d)/,'') : null;
-      const setId   = total ? getSetFromTotal(total) : null;
+      const localId = parts[0].replace(/^0+(?=\d)/, ''); // "025" → "25"
+      const total   = parts[1] ? String(parseInt(parts[1], 10)) : null;
+      const matchingSets = total ? getSetsFromTotal(total) : [];
 
-      if (setId) {
-        url = `https://api.tcgdex.net/v2/en/cards/${setId}-${localId}`;
+      if (matchingSets.length === 1) {
+        // Set identifié avec certitude → résultat direct
+        url = `https://api.tcgdex.net/v2/en/cards/${matchingSets[0].id}-${localId}`;
+      } else if (matchingSets.length > 1) {
+        // Plusieurs sets avec le même total → essayer tous en parallèle
+        const attempts = await Promise.allSettled(
+          matchingSets.map(s =>
+            fetch(`https://api.tcgdex.net/v2/en/cards/${s.id}-${localId}`)
+              .then(r => r.ok ? r.json() : null)
+          )
+        );
+        const found = attempts
+          .filter(r => r.status === 'fulfilled' && r.value && r.value.id)
+          .map(r => r.value);
+
+        if (found.length > 0) {
+          // Afficher les résultats trouvés
+          grid.innerHTML = '';
+          countEl.textContent = `${found.length} résultat${found.length > 1 ? 's' : ''} — clique pour sélectionner`;
+          found.forEach(card => renderCardResult(card, grid));
+          return;
+        }
+        // Aucun trouvé parmi les candidats → fallback manuel
+        url = null;
       } else {
+        // Total inconnu → chercher par localId global
         url = `https://api.tcgdex.net/v2/en/cards?localId=${localId}`;
       }
     } else {
       url = `https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(query)}`;
+    }
+
+    // Si pas d'URL déterminée → fallback manuel directement
+    if (!url) {
+      showManualForm(query, grid, countEl);
+      return;
     }
 
     const r = await fetch(url);
@@ -475,45 +512,7 @@ async function searchPok() {
     }
 
     if (!Array.isArray(cards) || cards.length === 0) {
-      grid.innerHTML = `
-        <div style="grid-column:1/-1;background:var(--surface2);border:1px solid rgba(200,241,53,.1);border-radius:14px;padding:24px;text-align:center">
-          <div style="font-size:32px;margin-bottom:10px">🔍</div>
-          <div style="font-weight:700;margin-bottom:6px">Carte non trouvée automatiquement</div>
-          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:18px">
-            Cette carte n'est pas dans la base TCGdex (set étranger, japonais, ou carte secrète).<br>Tu peux l'ajouter manuellement ci-dessous.
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;text-align:left">
-            <div>
-              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">NOM DU POKÉMON *</div>
-              <input id="manual-name" class="minput" placeholder="ex: Ectoplasma" style="margin:0"/>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">SET / EXTENSION</div>
-              <input id="manual-set" class="minput" placeholder="ex: Écarlate et Violet" style="margin:0"/>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">NUMÉRO</div>
-              <input id="manual-num" class="minput" placeholder="ex: 088/071" value="${query}" style="margin:0"/>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">RARETÉ</div>
-              <select id="manual-rarity" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none">
-                <option value="sr">Secret Rare (SR)</option>
-                <option value="ex">EX / Full Art</option>
-                <option value="holo">Holo Rare</option>
-                <option value="rare">Rare</option>
-                <option value="promo">Promo</option>
-                <option value="common">Common</option>
-              </select>
-            </div>
-          </div>
-          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:10px;text-align:left">
-            URL IMAGE (optionnel — colle un lien direct vers l'image de la carte)
-          </div>
-          <input id="manual-img" class="minput" placeholder="https://... (lien image jpg/png)" style="margin-bottom:14px"/>
-          <button class="btn btn-primary" onclick="addManualCard()" style="width:100%">+ Ajouter manuellement</button>
-        </div>`;
-      countEl.textContent = '0 résultat — ajout manuel disponible';
+      showManualForm(query, grid, countEl);
       return;
     }
 
@@ -521,48 +520,85 @@ async function searchPok() {
     const results = cards.slice(0, 20);
     countEl.textContent = `${results.length} résultat${results.length > 1 ? 's' : ''}${cards.length > 20 ? ` (sur ${cards.length})` : ''} — clique pour sélectionner`;
     grid.innerHTML = '';
-
-    results.forEach(card => {
-      const imgUrl = card.image ? `${card.image}/low.webp` : '';
-      const rarity = card.rarity || 'Common';
-      const rc = getRarityClass(rarity);
-      const rl = getRarityLabel(rarity);
-      const isSelected = selectedPokCards.has(card.id);
-      const el = document.createElement('div');
-      el.className = 'result-card' + (isSelected ? ' selected' : '');
-      el.innerHTML = `
-        <div class="result-check">✓</div>
-        <span class="rarity-badge ${rc}">${rl}</span>
-        ${imgUrl
-          ? `<img src="${imgUrl}" alt="${card.name}" loading="lazy" onerror="this.style.display='none'"/>`
-          : `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:30px;background:var(--surface2)">🃏</div>`
-        }
-        <div class="result-info">
-          <div class="result-name">${card.name || '?'}</div>
-          <div class="result-set">${card.set?.name || card.set || ''}</div>
-          <div class="result-num">#${card.localId || card.number || ''}</div>
-        </div>`;
-
-      // Construire l'objet carte compatible avec notre format Supabase
-      const cardData = {
-        id: card.id,
-        name: card.name,
-        set: { name: card.set?.name || card.set || 'Unknown' },
-        number: card.localId || card.number || '',
-        rarity,
-        images: { small: imgUrl },
-      };
-
-      el.addEventListener('click', () => toggleSelectPok(el, cardData));
-      grid.appendChild(el);
-    });
+    results.forEach(card => renderCardResult(card, grid));
 
   } catch (e) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur API : ${e.message}</div>`;
   }
 }
 
-async function addManualCard() {
+function renderCardResult(card, grid) {
+  const imgUrl = card.image ? `${card.image}/low.webp` : '';
+  const rarity = card.rarity || 'Common';
+  const rc = getRarityClass(rarity);
+  const rl = getRarityLabel(rarity);
+  const isSelected = selectedPokCards.has(card.id);
+  const el = document.createElement('div');
+  el.className = 'result-card' + (isSelected ? ' selected' : '');
+  el.innerHTML = `
+    <div class="result-check">✓</div>
+    <span class="rarity-badge ${rc}">${rl}</span>
+    ${imgUrl
+      ? `<img src="${imgUrl}" alt="${card.name}" loading="lazy" onerror="this.style.display='none'"/>`
+      : `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:30px;background:var(--surface2)">🃏</div>`
+    }
+    <div class="result-info">
+      <div class="result-name">${card.name || '?'}</div>
+      <div class="result-set">${card.set?.name || card.set || ''}</div>
+      <div class="result-num">#${card.localId || card.number || ''}</div>
+    </div>`;
+  const cardData = {
+    id: card.id,
+    name: card.name,
+    set: { name: card.set?.name || card.set || 'Unknown' },
+    number: card.localId || card.number || '',
+    rarity,
+    images: { small: imgUrl },
+  };
+  el.addEventListener('click', () => toggleSelectPok(el, cardData));
+  grid.appendChild(el);
+}
+
+function showManualForm(query, grid, countEl) {
+  grid.innerHTML = `
+    <div style="grid-column:1/-1;background:var(--surface2);border:1px solid rgba(200,241,53,.1);border-radius:14px;padding:24px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">🔍 Carte non trouvée automatiquement</div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:18px">
+        Set étranger, japonais ou carte secrète — ajoute-la manuellement.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">NOM DU POKÉMON *</div>
+          <input id="manual-name" class="minput" placeholder="ex: Ectoplasma" style="margin:0"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">SET / EXTENSION</div>
+          <input id="manual-set" class="minput" placeholder="ex: Écarlate et Violet" style="margin:0"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">NUMÉRO</div>
+          <input id="manual-num" class="minput" value="${query}" style="margin:0"/>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">RARETÉ</div>
+          <select id="manual-rarity" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none">
+            <option value="sr">Secret Rare (SR)</option>
+            <option value="ex">EX / Full Art</option>
+            <option value="holo">Holo Rare</option>
+            <option value="rare">Rare</option>
+            <option value="promo">Promo</option>
+            <option value="common">Common</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:6px">URL IMAGE (optionnel)</div>
+      <input id="manual-img" class="minput" placeholder="https://... (lien direct vers l'image)" style="margin-bottom:14px"/>
+      <button class="btn btn-primary" onclick="addManualCard()" style="width:100%">+ Ajouter manuellement</button>
+    </div>`;
+  countEl.textContent = '0 résultat — ajout manuel disponible';
+}
+
+
   const name    = document.getElementById('manual-name')?.value.trim();
   const setName = document.getElementById('manual-set')?.value.trim() || 'Inconnu';
   const number  = document.getElementById('manual-num')?.value.trim() || '';
@@ -583,6 +619,25 @@ async function addManualCard() {
 }
 
 
+async function addManualCard() {
+  const name    = document.getElementById('manual-name')?.value.trim();
+  const setName = document.getElementById('manual-set')?.value.trim() || 'Inconnu';
+  const number  = document.getElementById('manual-num')?.value.trim() || '';
+  const rarity  = document.getElementById('manual-rarity')?.value || 'common';
+  const img     = document.getElementById('manual-img')?.value.trim() || '';
+  if (!name) { toast('⚠ Le nom du Pokémon est requis'); return; }
+  try {
+    await sbInsert('pok_cards', { name, set_name: setName, number, rarity, img: img || null, price: null });
+    toast(`✅ ${name} ajouté manuellement !`);
+    document.getElementById('pok-results-wrap').style.display = 'none';
+    document.getElementById('pok-search').value = '';
+    refreshPokCollection();
+  } catch (e) {
+    toast('❌ Erreur : ' + e.message);
+  }
+}
+
+function toggleSelectPok(el, card) {
   if (selectedPokCards.has(card.id)) {
     selectedPokCards.delete(card.id);
     el.classList.remove('selected');
@@ -772,6 +827,9 @@ async function addOpCard() {
 // INIT
 // ══════════════════════════════════════════
 function initApp() {
+  loadAllSets().then(() => {
+    console.log('Sets prêts pour la recherche');
+  });
   refreshPokCollection();
   refreshOpCollection();
 }
