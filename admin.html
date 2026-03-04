@@ -410,25 +410,30 @@ async function searchPok() {
   grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spin"></div>Recherche en cours...</div>`;
 
   try {
-    const url = 'https://onhlizqtitavbeucilqf.supabase.co/functions/v1/smart-task';
+    const isNumber = /^[0-9TG]/.test(query);
+    let q;
+    if (isNumber) {
+      const cleanNum = query.split('/')[0].replace(/^0+(?=\d)/, '');
+      q = `number:${cleanNum}`;
+      if (setFilter) q += ` set.id:${setFilter}`;
+    } else {
+      q = `name:${query}*`;
+      if (setFilter) q += ` set.id:${setFilter}`;
+    }
+
+    const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=20&orderBy=-set.releaseDate`;
     const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
-      body: JSON.stringify({ query, setId: setFilter || null }),
+      headers: { 'X-Api-Key': POK_KEY }
     });
-
-    const raw = await r.text(); // Lire comme texte d'abord
-    console.log('Edge Function response:', r.status, raw); // Debug dans F12
-
+    const raw = await r.text();
+    console.log('PokéTCG direct response:', r.status, raw.slice(0, 100));
     let data;
     try { data = JSON.parse(raw); } catch {
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Réponse invalide : ${raw.slice(0,200)}</div>`;
       return;
     }
-
     if (data.error) {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur fonction : ${data.error}</div>`;
-      countEl.textContent = 'Erreur';
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur API : ${data.error}</div>`;
       return;
     }
 
