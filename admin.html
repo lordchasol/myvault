@@ -423,9 +423,10 @@ async function searchPok() {
     }
 
     const apiUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(qStr)}&pageSize=20&orderBy=-set.releaseDate`;
-    const url = `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`;
+    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
     const r = await fetch(url);
-    const data = await r.json();
+    const wrapper = await r.json();
+    const data = JSON.parse(wrapper.contents);
 
     if (!data.data || data.data.length === 0) {
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"<br>Essaie un nom anglais ou ajoute un code set</div>`;
