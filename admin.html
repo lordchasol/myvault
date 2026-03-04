@@ -411,31 +411,72 @@ async function searchPok() {
 
   try {
     const isNumber = /^[0-9TG]/.test(query);
-    let q;
+    let url;
+
     if (isNumber) {
       const cleanNum = query.split('/')[0].replace(/^0+(?=\d)/, '');
-      q = `number:${cleanNum}`;
-      if (setFilter) q += ` set.id:${setFilter}`;
+      // Cherche par numéro dans tous les sets
+      url = `https://api.tcgdex.net/v2/en/cards?number=${cleanNum}`;
     } else {
-      q = `name:${query}*`;
-      if (setFilter) q += ` set.id:${setFilter}`;
+      // Cherche par nom
+      url = `https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(query)}`;
     }
 
-    const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=20&orderBy=-set.releaseDate`;
-    const r = await fetch(url, {
-      headers: { 'X-Api-Key': POK_KEY }
-    });
+    const r = await fetch(url);
     const raw = await r.text();
-    console.log('PokéTCG direct response:', r.status, raw.slice(0, 100));
-    let data;
-    try { data = JSON.parse(raw); } catch {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Réponse invalide : ${raw.slice(0,200)}</div>`;
+    console.log('TCGdex response:', r.status, raw.slice(0, 200));
+
+    let cards;
+    try { cards = JSON.parse(raw); } catch {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Réponse invalide du serveur</div>`;
       return;
     }
-    if (data.error) {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur API : ${data.error}</div>`;
+
+    if (!Array.isArray(cards) || cards.length === 0) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"</div>`;
+      countEl.textContent = '0 résultat';
       return;
     }
+
+    // Limiter à 20 résultats
+    const results = cards.slice(0, 20);
+    countEl.textContent = `${results.length} résultat${results.length > 1 ? 's' : ''}${cards.length > 20 ? ` (sur ${cards.length})` : ''} — clique pour sélectionner`;
+    grid.innerHTML = '';
+
+    results.forEach(card => {
+      const imgUrl = card.image ? `${card.image}/low.webp` : '';
+      const rarity = card.rarity || 'Common';
+      const rc = getRarityClass(rarity);
+      const rl = getRarityLabel(rarity);
+      const isSelected = selectedPokCards.has(card.id);
+      const el = document.createElement('div');
+      el.className = 'result-card' + (isSelected ? ' selected' : '');
+      el.innerHTML = `
+        <div class="result-check">✓</div>
+        <span class="rarity-badge ${rc}">${rl}</span>
+        ${imgUrl
+          ? `<img src="${imgUrl}" alt="${card.name}" loading="lazy" onerror="this.style.display='none'"/>`
+          : `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:30px;background:var(--surface2)">🃏</div>`
+        }
+        <div class="result-info">
+          <div class="result-name">${card.name || '?'}</div>
+          <div class="result-set">${card.set?.name || card.set || ''}</div>
+          <div class="result-num">#${card.localId || card.number || ''}</div>
+        </div>`;
+
+      // Construire l'objet carte compatible avec notre format Supabase
+      const cardData = {
+        id: card.id,
+        name: card.name,
+        set: { name: card.set?.name || card.set || 'Unknown' },
+        number: card.localId || card.number || '',
+        rarity,
+        images: { small: imgUrl },
+      };
+
+      el.addEventListener('click', () => toggleSelectPok(el, cardData));
+      grid.appendChild(el);
+    });
 
     if (!data.data || data.data.length === 0) {
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"<br>Essaie un nom anglais ou ajoute un code set</div>`;
@@ -443,27 +484,6 @@ async function searchPok() {
       return;
     }
 
-    countEl.textContent = `${data.data.length} résultat${data.data.length > 1 ? 's' : ''} — clique pour sélectionner`;
-    grid.innerHTML = '';
-
-    data.data.forEach(card => {
-      const rc = getRarityClass(card.rarity);
-      const rl = getRarityLabel(card.rarity);
-      const isSelected = selectedPokCards.has(card.id);
-      const el = document.createElement('div');
-      el.className = 'result-card' + (isSelected ? ' selected' : '');
-      el.innerHTML = `
-        <div class="result-check">✓</div>
-        <span class="rarity-badge ${rc}">${rl}</span>
-        <img src="${card.images.small}" alt="${card.name}" loading="lazy"/>
-        <div class="result-info">
-          <div class="result-name">${card.name}</div>
-          <div class="result-set">${card.set.name}</div>
-          <div class="result-num">#${card.number}</div>
-        </div>`;
-      el.addEventListener('click', () => toggleSelectPok(el, card));
-      grid.appendChild(el);
-    });
   } catch (e) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur API : ${e.message}</div>`;
   }
@@ -495,10 +515,10 @@ async function addSelectedPok() {
     try {
       await sbInsert('pok_cards', {
         name: card.name,
-        set_name: card.set.name,
-        number: `${card.number}/${card.set.printedTotal}`,
+        set_name: card.set?.name || card.set || 'Unknown',
+        number: card.number || '',
         rarity: card.rarity || 'common',
-        img: card.images.small,
+        img: card.images?.small || '',
         price: null,
       });
       added++;
