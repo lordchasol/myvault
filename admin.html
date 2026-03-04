@@ -475,8 +475,45 @@ async function searchPok() {
     }
 
     if (!Array.isArray(cards) || cards.length === 0) {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"</div>`;
-      countEl.textContent = '0 résultat';
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;background:var(--surface2);border:1px solid rgba(200,241,53,.1);border-radius:14px;padding:24px;text-align:center">
+          <div style="font-size:32px;margin-bottom:10px">🔍</div>
+          <div style="font-weight:700;margin-bottom:6px">Carte non trouvée automatiquement</div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:18px">
+            Cette carte n'est pas dans la base TCGdex (set étranger, japonais, ou carte secrète).<br>Tu peux l'ajouter manuellement ci-dessous.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;text-align:left">
+            <div>
+              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">NOM DU POKÉMON *</div>
+              <input id="manual-name" class="minput" placeholder="ex: Ectoplasma" style="margin:0"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">SET / EXTENSION</div>
+              <input id="manual-set" class="minput" placeholder="ex: Écarlate et Violet" style="margin:0"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">NUMÉRO</div>
+              <input id="manual-num" class="minput" placeholder="ex: 088/071" value="${query}" style="margin:0"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">RARETÉ</div>
+              <select id="manual-rarity" style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none">
+                <option value="sr">Secret Rare (SR)</option>
+                <option value="ex">EX / Full Art</option>
+                <option value="holo">Holo Rare</option>
+                <option value="rare">Rare</option>
+                <option value="promo">Promo</option>
+                <option value="common">Common</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:10px;text-align:left">
+            URL IMAGE (optionnel — colle un lien direct vers l'image de la carte)
+          </div>
+          <input id="manual-img" class="minput" placeholder="https://... (lien image jpg/png)" style="margin-bottom:14px"/>
+          <button class="btn btn-primary" onclick="addManualCard()" style="width:100%">+ Ajouter manuellement</button>
+        </div>`;
+      countEl.textContent = '0 résultat — ajout manuel disponible';
       return;
     }
 
@@ -525,7 +562,27 @@ async function searchPok() {
   }
 }
 
-function toggleSelectPok(el, card) {
+async function addManualCard() {
+  const name    = document.getElementById('manual-name')?.value.trim();
+  const setName = document.getElementById('manual-set')?.value.trim() || 'Inconnu';
+  const number  = document.getElementById('manual-num')?.value.trim() || '';
+  const rarity  = document.getElementById('manual-rarity')?.value || 'common';
+  const img     = document.getElementById('manual-img')?.value.trim() || '';
+
+  if (!name) { toast('⚠ Le nom du Pokémon est requis'); return; }
+
+  try {
+    await sbInsert('pok_cards', { name, set_name: setName, number, rarity, img: img || null, price: null });
+    toast(`✅ ${name} ajouté manuellement !`);
+    document.getElementById('pok-results-wrap').style.display = 'none';
+    document.getElementById('pok-search').value = '';
+    refreshPokCollection();
+  } catch (e) {
+    toast('❌ Erreur : ' + e.message);
+  }
+}
+
+
   if (selectedPokCards.has(card.id)) {
     selectedPokCards.delete(card.id);
     el.classList.remove('selected');
