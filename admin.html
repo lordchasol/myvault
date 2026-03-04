@@ -478,12 +478,6 @@ async function searchPok() {
       grid.appendChild(el);
     });
 
-    if (!data.data || data.data.length === 0) {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1">Aucune carte trouvée pour "<strong>${query}</strong>"<br>Essaie un nom anglais ou ajoute un code set</div>`;
-      countEl.textContent = '0 résultat';
-      return;
-    }
-
   } catch (e) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;color:var(--red)">Erreur API : ${e.message}</div>`;
   }
