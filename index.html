@@ -136,8 +136,8 @@
   .erstate{padding:18px;background:rgba(255,80,80,.04);border:1px solid rgba(255,80,80,.14);border-radius:10px;font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,120,120,.75);}
 
   /* MODAL */
-  .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s;}
-  .modal-ov.open{opacity:1;pointer-events:all;}
+  .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-ov.open{display:flex;}
   .modal{background:var(--surface);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;max-width:460px;width:100%;transform:scale(.95) translateY(10px);transition:transform .25s;}
   .modal-ov.open .modal{transform:scale(1) translateY(0);}
   .mtitle{font-size:20px;font-weight:800;margin-bottom:5px;}
@@ -321,16 +321,16 @@ const WALLETS = [
 // et modifie name/set/number/rarity/img
 // ═══════════════════════════════════════
 const POK_CARDS = [
-  { name:'Revavroom ex',        set:'Obsidian Flames',      number:'155/197', rarity:'ex',    img:'https://images.pokemontcg.io/sv3/155_hires.png' },
-  { name:'Roaring Moon ex',     set:'Paradox Rift',         number:'213/182', rarity:'sr',    img:'https://images.pokemontcg.io/sv4/213_hires.png' },
-  { name:'Iron Valiant ex',     set:'Paradox Rift',         number:'262/182', rarity:'sr',    img:'https://images.pokemontcg.io/sv4/262_hires.png' },
-  { name:'Carte Secrète',       set:'Twilight Masquerade',  number:'148/142', rarity:'sr',    img:'https://images.pokemontcg.io/sv6/148_hires.png' },
-  { name:'Kangaskhan ex',       set:'Scarlet & Violet 151', number:'190/165', rarity:'ex',    img:'https://images.pokemontcg.io/sv3pt5/190_hires.png' },
-  { name:'Trainer Gallery TG06',set:'Brilliant Stars TG',   number:'TG06/TG30',rarity:'holo', img:'https://images.pokemontcg.io/swsh9tg/TG06_hires.png' },
-  { name:'Trainer Gallery TG05',set:'Brilliant Stars TG',   number:'TG05/TG30',rarity:'holo', img:'https://images.pokemontcg.io/swsh9tg/TG05_hires.png' },
-  { name:'Promo SV 059',        set:'SV Black Star Promo',  number:'059/092', rarity:'promo', img:'https://images.pokemontcg.io/svp/59_hires.png' },
-  { name:'Promo SV 088',        set:'SV Black Star Promo',  number:'088/071', rarity:'promo', img:'https://images.pokemontcg.io/svp/88_hires.png' },
-  { name:'Carte SR 127',        set:'Twilight Masquerade',  number:'127/094', rarity:'sr',    img:'https://images.pokemontcg.io/sv6/127_hires.png' },
+  { name:'Revavroom ex',        set:'Obsidian Flames',      number:'155/197', rarity:'ex',    img:'https://images.pokemontcg.io/sv3/155.png' },
+  { name:'Roaring Moon ex',     set:'Paradox Rift',         number:'213/182', rarity:'sr',    img:'https://images.pokemontcg.io/sv4/213.png' },
+  { name:'Iron Valiant ex',     set:'Paradox Rift',         number:'262/182', rarity:'sr',    img:'https://images.pokemontcg.io/sv4/262.png' },
+  { name:'Carte Secrète',       set:'Twilight Masquerade',  number:'148/142', rarity:'sr',    img:'https://images.pokemontcg.io/sv6/148.png' },
+  { name:'Kangaskhan ex',       set:'Scarlet & Violet 151', number:'190/165', rarity:'ex',    img:'https://images.pokemontcg.io/sv3pt5/190.png' },
+  { name:'Trainer Gallery TG06',set:'Brilliant Stars TG',   number:'TG06/TG30',rarity:'holo', img:'https://images.pokemontcg.io/swsh9tg/TG06.png' },
+  { name:'Trainer Gallery TG05',set:'Brilliant Stars TG',   number:'TG05/TG30',rarity:'holo', img:'https://images.pokemontcg.io/swsh9tg/TG05.png' },
+  { name:'Promo SV 059',        set:'SV Black Star Promo',  number:'059/092', rarity:'promo', img:'https://images.pokemontcg.io/svp/59.png' },
+  { name:'Promo SV 088',        set:'SV Black Star Promo',  number:'088/071', rarity:'promo', img:'https://images.pokemontcg.io/svp/88.png' },
+  { name:'Carte SR 127',        set:'Twilight Masquerade',  number:'127/094', rarity:'sr',    img:'https://images.pokemontcg.io/sv6/127.png' },
 ];
 
 // ═══════════════════════════════════════
@@ -582,6 +582,9 @@ function buildDomainCard(grid, d, i) {
       <div class="dmi"><span class="dml">Statut</span><span class="dmv" style="color:${d.listed ? 'var(--accent)' : '#4ade80'}">${d.listed ? 'En vente' : 'Hold'}</span></div>
     </div>`;
 
+  // Sécuriser le nom pour usage dans onclick (échapper les apostrophes)
+  const safeName = d.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
   el.innerHTML = `
     <div class="dhdr">
       <div class="dicon">🔗</div>
@@ -594,14 +597,10 @@ function buildDomainCard(grid, d, i) {
     ${priceBlock}
     ${metaBlock}
     <div class="dfoot">
-      <button class="dbtn dbtn-p" data-domain="${d.name}">🛒 Acheter sur sns.id</button>
-      <button class="dbtn dbtn-s" data-domain="${d.name}">💬 Contacter</button>
+      <button class="dbtn dbtn-p" onclick="window.open('https://sns.id/domain/${safeName}','_blank')">🛒 Acheter sur sns.id</button>
+      <button class="dbtn dbtn-s" onclick="snsDM('${safeName}')">💬 Contacter</button>
     </div>`;
 
-  // Bouton principal → page d'achat / offre onchain sur sns.id
-  el.querySelector('.dbtn-p').addEventListener('click', () => window.open('https://sns.id/domain/' + d.name, '_blank'));
-  // Bouton contact → Twitter DM pré-rempli
-  el.querySelector('.dbtn-s').addEventListener('click', () => window.open('https://twitter.com/messages/compose?recipient_id=Renato42084&text=' + encodeURIComponent('Offre pour : ' + d.name + '.sol'), '_blank'));
   grid.appendChild(el);
 }
 
@@ -614,6 +613,10 @@ function renderSNSFallback() {
     </div>`;
   document.getElementById('sol-spin').style.display = 'none';
   document.getElementById('sol-status').textContent = 'API indisponible';
+}
+
+function snsDM(name) {
+  window.open('https://twitter.com/messages/compose?recipient_id=Renato42084&text=' + encodeURIComponent('Offre pour : ' + name + '.sol'), '_blank');
 }
 
 // ═══════════════════════════════════════
