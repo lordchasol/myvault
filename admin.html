@@ -446,16 +446,15 @@ async function searchPok() {
 
     if (isNumber) {
       const parts = query.split('/');
-      const localId = parts[0]; // garder les zéros : "025"
+      const localIdRaw = parts[0];
+      const localId = localIdRaw.replace(/^0+(?=\d)/, ''); // "025" → "25"
       const total   = parts[1] ? parts[1].replace(/^0+(?=\d)/,'') : null;
       const setId   = total ? getSetFromTotal(total) : null;
 
       if (setId) {
-        // Endpoint direct : retourne la carte exacte
         url = `https://api.tcgdex.net/v2/en/cards/${setId}-${localId}`;
       } else {
-        // Pas de total connu → chercher par localId dans tous les sets
-        url = `https://api.tcgdex.net/v2/en/cards?localId=${localId.replace(/^0+(?=\d)/,'')}`;
+        url = `https://api.tcgdex.net/v2/en/cards?localId=${localId}`;
       }
     } else {
       url = `https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(query)}`;
