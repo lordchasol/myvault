@@ -532,10 +532,6 @@ function renderPok(cards) {
       </div>`;
     g.appendChild(d);
   });
-  const ph = document.createElement('div');
-  ph.className = 'cph';
-  ph.innerHTML = '<div class="phicon">＋</div><div class="phtxt">Ajouter<br>une carte</div>';
-  g.appendChild(ph);
 }
 
 function filterPok(type, btn) {
@@ -837,25 +833,57 @@ async function adminAddCard() {
   btn.disabled = true;
 
   try {
-    let q = `number:${numInput.split('/')[0]}`;
-    if (setInput) q += ` set.id:${setInput}`;
-    const url = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=1`;
-    const res = await fetch(url, { headers: { 'X-Api-Key': POK_API_KEY } });
-    const data = await res.json();
+    // Nettoyer le numéro : "025/185" → "25", "TG06/TG30" → "TG06"
+    const rawNum = numInput.split('/')[0].replace(/^0+(?=\d)/, '');
 
-    if (!data.data || data.data.length === 0) {
-      showToast('❌ Carte non trouvée — essaie avec le code set (ex: sv3)');
+    let card = null;
+
+    // Tentative 1 : avec set si fourni
+    if (setInput) {
+      const q = `number:${rawNum} set.id:${setInput}`;
+      const r = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=1`, {
+        headers: { 'X-Api-Key': POK_API_KEY }
+      });
+      const d = await r.json();
+      if (d.data && d.data.length > 0) card = d.data[0];
+    }
+
+    // Tentative 2 : numéro seul (sans set)
+    if (!card) {
+      const q = `number:${rawNum}`;
+      const r = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=8`, {
+        headers: { 'X-Api-Key': POK_API_KEY }
+      });
+      const d = await r.json();
+      if (d.data && d.data.length > 0) {
+        // Prendre la première qui correspond exactement au numéro (avec ou sans zéros)
+        card = d.data.find(c => c.number === rawNum || c.number === numInput.split('/')[0]) || d.data[0];
+      }
+    }
+
+    // Tentative 3 : numéro avec zéros (ex: "25" → chercher "025" aussi)
+    if (!card) {
+      const padded = rawNum.padStart(3, '0');
+      const q = `number:${padded}`;
+      const r = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&pageSize=4`, {
+        headers: { 'X-Api-Key': POK_API_KEY }
+      });
+      const d = await r.json();
+      if (d.data && d.data.length > 0) card = d.data[0];
+    }
+
+    if (!card) {
+      showToast('❌ Carte non trouvée — ajoute le code set (ex: swsh4, sv3...)');
       btn.textContent = '+ Ajouter'; btn.disabled = false;
       return;
     }
 
-    const c = data.data[0];
     const newCard = {
-      name: c.name,
-      set:  c.set.name,
-      number: `${c.number}/${c.set.printedTotal}`,
-      rarity: c.rarity || 'common',
-      img: c.images?.small || '',
+      name: card.name,
+      set:  card.set.name,
+      number: `${card.number}/${card.set.printedTotal}`,
+      rarity: card.rarity || 'common',
+      img: card.images?.small || '',
       price: null,
     };
 
@@ -871,7 +899,7 @@ async function adminAddCard() {
 
     document.getElementById('admin-num').value = '';
     document.getElementById('admin-set').value = '';
-    showToast(`✅ ${c.name} ajouté !`);
+    showToast(`✅ ${card.name} (${card.set.name}) ajouté !`);
   } catch (e) {
     showToast('❌ Erreur : ' + e.message);
   }
