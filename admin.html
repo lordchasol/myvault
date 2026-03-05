@@ -874,14 +874,22 @@ async function searchOpCard() {
     }
   } catch { /* nom indisponible */ }
 
-  // Tester toutes les variantes d'images Bandai en parallèle
+  // Tester toutes les variantes via l'Edge Function op-image (stockage Supabase)
   const suffixes = ['', '_p1', '_p2', '_p3', '_p4'];
   const variantLabels = ['Normal', 'Variante 1', 'Variante 2', 'Variante 3', 'Variante 4'];
-  const rarities = [rarity, 'holo', 'sr', 'sr', 'sr'];
+  const rarities = [rarity, 'sp', 'sec', 'sec', 'sec'];
 
-  const checks = await Promise.all(suffixes.map((s, i) => {
-    const url = `https://en.onepiece-cardgame.com/images/cardlist/card/${input}${s}.png`;
-    return checkImage(url).then(exists => exists ? { url, label: variantLabels[i], rarity: rarities[i] } : null);
+  const checks = await Promise.all(suffixes.map(async (s, i) => {
+    try {
+      const r = await fetch(`${SB_URL}/functions/v1/op-image?id=${input}&suffix=${s}`, {
+        headers: { 'Authorization': `Bearer ${SB_KEY}` },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!r.ok) return null;
+      const data = await r.json();
+      if (!data.url) return null;
+      return { url: data.url, label: variantLabels[i], rarity: rarities[i] };
+    } catch { return null; }
   }));
 
   const variants = checks.filter(Boolean);
