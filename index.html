@@ -589,7 +589,7 @@ async function fetchOpPrice(number, elId) {
     console.log('op-price response for', cleanNum, ':', JSON.stringify(data));
     const el = document.getElementById(elId);
     if (!el) return;
-    const price = data.market_price || data.avg_price || data.low_price || null;
+    const price = data.market_price || data.avg_price_7d || null;
     if (price) {
       el.textContent = `$${Number(price).toFixed(2)}`;
       el.title = 'Cote marché — optcgapi.com';
