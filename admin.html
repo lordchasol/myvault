@@ -256,6 +256,10 @@
             <label>Emoji représentatif</label>
             <input id="op-emoji" placeholder="ex: 🏴‍☠️ ⚔️ 🌊" style="font-size:18px"/>
           </div>
+          <div class="form-field" style="grid-column:1/-1">
+            <label>URL Image (optionnel — remplace l'emoji)</label>
+            <input id="op-img" placeholder="https://... (lien direct vers l'image de la carte)"/>
+          </div>
         </div>
         <button class="btn btn-primary" onclick="addOpCard()" style="width:100%">+ Ajouter à la collection</button>
       </div>
@@ -819,19 +823,20 @@ async function addOpCard() {
   const price = document.getElementById('op-price').value.trim();
   const rarity = document.getElementById('op-rarity').value;
   const emoji = document.getElementById('op-emoji').value.trim() || '🃏';
+  const img = document.getElementById('op-img')?.value.trim() || null;
 
   if (!name || !setName) { toast('⚠ Nom et set requis'); return; }
 
   try {
-    await sbInsert('op_cards', { name, set_name: setName, price: price || null, rarity, emoji });
+    await sbInsert('op_cards', { name, set_name: setName, price: price || null, rarity, emoji, img });
     toast(`✅ ${name} ajouté !`);
     document.getElementById('op-name').value = '';
     document.getElementById('op-set').value = '';
     document.getElementById('op-price').value = '';
     document.getElementById('op-emoji').value = '';
+    if (document.getElementById('op-img')) document.getElementById('op-img').value = '';
     refreshOpCollection();
   } catch (e) {
-    // Si la table n'existe pas, on l'indique
     if (e.message.includes('42P01') || e.message.includes('does not exist')) {
       toast('⚠ Crée d\'abord la table op_cards dans Supabase SQL Editor');
     } else {
