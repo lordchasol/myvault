@@ -353,7 +353,8 @@ async function sbGetCards() {
   if (!r.ok) throw new Error('Supabase fetch failed');
   const data = await r.json();
   return data.map(c => ({
-    id: c.id,
+    id: c.tcgdex_id || null,  // ID TCGdex pour récupérer les prix
+    db_id: c.id,              // UUID Supabase
     name: c.name,
     set: c.set_name,
     number: c.number,
@@ -474,6 +475,7 @@ function renderPok(cards) {
   g.innerHTML = '';
   cards.forEach((c, i) => {
     const r = getRarity(c.rarity);
+    const priceId = `pok-price-${i}`;
     const d = document.createElement('div');
     d.className = 'citem fi';
     d.style.animationDelay = `${i * 0.04}s`;
@@ -489,7 +491,7 @@ function renderPok(cards) {
         <div class="cname">${c.name}</div>
         <div class="cmeta">
           <span class="cset">${c.set} · ${c.number}</span>
-          <span class="cprice">${c.price||'—'}</span>
+          <span class="cprice" id="${priceId}">…</span>
         </div>
       </div>
       <div class="cactions">
@@ -497,7 +499,31 @@ function renderPok(cards) {
         <div class="abtn abtn-offer" onclick="openModal('${c.name} · ${c.set}')">Offrir</div>
       </div>`;
     g.appendChild(d);
+
+    // Fetch prix temps réel via TCGdex (id = ex: swsh4-25)
+    if (c.id) fetchPokPrice(c.id, priceId);
+    else document.getElementById(priceId).textContent = '—';
   });
+}
+
+async function fetchPokPrice(cardId, elId) {
+  try {
+    const r = await fetch(`https://api.tcgdex.net/v2/en/cards/${cardId}`, {
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const el = document.getElementById(elId);
+    if (!el) return;
+    // TCGdex retourne variants.normal.market ou variants.holofoil.market
+    const v = data.variants || {};
+    const price = v.normal?.market || v.holofoil?.market || v.normal?.low || v.holofoil?.low || null;
+    el.textContent = price ? `$${Number(price).toFixed(2)}` : '—';
+    if (price) el.title = 'Cote marché — TCGdex';
+  } catch {
+    const el = document.getElementById(elId);
+    if (el) el.textContent = '—';
+  }
 }
 
 function filterPok(type, btn) {
