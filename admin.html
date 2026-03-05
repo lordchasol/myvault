@@ -230,6 +230,24 @@
       <!-- FORM AJOUT -->
       <div class="op-form">
         <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px">+ Ajouter une carte One Piece</div>
+
+        <!-- RECHERCHE PAR ID -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:6px">RECHERCHE PAR N° DE CARTE (ex: OP01-001, ST01-001)</div>
+          <div style="display:flex;gap:8px">
+            <input id="op-search-id" class="minput" placeholder="ex: OP01-001" style="margin:0;flex:1"
+              onkeydown="if(event.key==='Enter')searchOpCard()"/>
+            <button class="btn btn-primary" onclick="searchOpCard()" style="flex-shrink:0;padding:0 20px">🔍 Chercher</button>
+          </div>
+          <div id="op-search-result" style="margin-top:12px"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin:16px 0">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">OU AJOUT MANUEL</div>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+
         <div class="form-grid">
           <div class="form-field">
             <label>Nom du personnage *</label>
@@ -248,7 +266,7 @@
             <select id="op-rarity">
               <option value="sr">Secret Rare (SR)</option>
               <option value="holo">Holo Rare</option>
-              <option value="rare">Rare</option>
+              <option value="rare" selected>Rare</option>
               <option value="common">Common</option>
             </select>
           </div>
@@ -261,7 +279,7 @@
             <input id="op-img" placeholder="https://... (lien direct vers l'image de la carte)"/>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addOpCard()" style="width:100%">+ Ajouter à la collection</button>
+        <button class="btn btn-primary" onclick="addOpCard()" style="width:100%">+ Ajouter manuellement</button>
       </div>
 
       <!-- COLLECTION OP -->
@@ -817,7 +835,86 @@ function renderOpCollection(cards) {
   el.appendChild(wrap);
 }
 
-async function addOpCard() {
+// ══════════════════════════════════════════
+// ONE PIECE — recherche via optcgapi.com
+// ══════════════════════════════════════════
+async function searchOpCard() {
+  const input = document.getElementById('op-search-id').value.trim().toUpperCase();
+  const resultEl = document.getElementById('op-search-result');
+  if (!input) { toast('⚠ Entre un numéro de carte'); return; }
+
+  resultEl.innerHTML = `<div class="loading"><div class="spin"></div>Recherche ${input}...</div>`;
+
+  // Détecter si c'est un starter deck (ST) ou un set (OP/EB/PRB)
+  const isStarter = input.startsWith('ST');
+  const url = isStarter
+    ? `https://optcgapi.com/api/decks/card/${input}/`
+    : `https://optcgapi.com/api/sets/card/${input}/`;
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`Carte "${input}" introuvable`);
+    const card = await r.json();
+
+    // Mapper la rareté
+    const rarityMap = { 'L':'sr', 'SEC':'sr', 'SR':'sr', 'R':'rare', 'UC':'holo', 'C':'common', 'P':'promo' };
+    const rarity = rarityMap[card.rarity] || 'rare';
+    const imgUrl = card.card_image || '';
+    const setName = card.set_name || input.split('-')[0];
+    const price = card.market_price ? `$${card.market_price}` : '';
+
+    resultEl.innerHTML = `
+      <div style="background:var(--surface);border:1px solid rgba(200,241,53,.2);border-radius:12px;padding:16px;display:flex;gap:16px;align-items:flex-start">
+        ${imgUrl
+          ? `<img src="${imgUrl}" style="width:80px;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'"/>`
+          : `<div style="width:80px;height:112px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🏴‍☠️</div>`
+        }
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${card.name || input}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px">${input} · ${setName}</div>
+          ${card.rarity ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);margin-bottom:4px">Rareté: ${card.rarity}</div>` : ''}
+          ${price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:10px">Prix: ${price}</div>` : ''}
+          <button class="btn btn-primary" style="width:100%" onclick='addOpCardFromApi(${JSON.stringify({
+            name: card.name || input,
+            set_name: setName,
+            number: input,
+            rarity,
+            img: imgUrl,
+            price,
+            emoji: "🏴‍☠️"
+          })})'>+ Ajouter à la collection</button>
+        </div>
+      </div>`;
+  } catch (e) {
+    resultEl.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid rgba(255,107,107,.2);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:13px;color:var(--red);margin-bottom:8px">⚠ ${e.message.includes('introuvable') ? e.message : 'API inaccessible (CORS) — utilise l\'ajout manuel'}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">Essaie le format exact: OP01-001, ST01-001, EB01-001</div>
+      </div>`;
+  }
+}
+
+async function addOpCardFromApi(card) {
+  try {
+    await sbInsert('op_cards', {
+      name: card.name,
+      set_name: card.set_name,
+      number: card.number,
+      rarity: card.rarity,
+      img: card.img || null,
+      price: card.price || null,
+      emoji: card.emoji,
+    });
+    toast(`✅ ${card.name} ajouté !`);
+    document.getElementById('op-search-id').value = '';
+    document.getElementById('op-search-result').innerHTML = '';
+    refreshOpCollection();
+  } catch (e) {
+    toast('❌ Erreur : ' + e.message);
+  }
+}
+
+
   const name = document.getElementById('op-name').value.trim();
   const setName = document.getElementById('op-set').value.trim();
   const price = document.getElementById('op-price').value.trim();
