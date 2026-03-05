@@ -874,17 +874,21 @@ async function searchOpCard() {
           <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px">${input} · ${setName}</div>
           ${card.rarity ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);margin-bottom:4px">Rareté: ${card.rarity}</div>` : ''}
           ${price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:10px">Prix: ${price}</div>` : ''}
-          <button class="btn btn-primary" style="width:100%" onclick='addOpCardFromApi(${JSON.stringify({
-            name: card.name || input,
-            set_name: setName,
-            number: input,
-            rarity,
-            img: imgUrl,
-            price,
-            emoji: "🏴‍☠️"
-          })})'>+ Ajouter à la collection</button>
+          <button class="btn btn-primary" style="width:100%" onclick="addOpCardFromApi(this)">+ Ajouter à la collection</button>
         </div>
       </div>`;
+
+    // Stocker les données sur le bouton pour éviter les problèmes de quotes
+    const btn = resultEl.querySelector('.btn-primary');
+    btn._cardData = {
+      name: card.name || input,
+      set_name: setName,
+      number: input,
+      rarity,
+      img: imgUrl,
+      price,
+      emoji: '🏴\u200d☠️'
+    };
   } catch (e) {
     resultEl.innerHTML = `
       <div style="background:var(--surface2);border:1px solid rgba(255,107,107,.2);border-radius:12px;padding:16px;text-align:center">
@@ -894,7 +898,9 @@ async function searchOpCard() {
   }
 }
 
-async function addOpCardFromApi(card) {
+async function addOpCardFromApi(btn) {
+  const card = btn._cardData;
+  if (!card) { toast('❌ Données manquantes'); return; }
   try {
     await sbInsert('op_cards', {
       name: card.name,
@@ -905,7 +911,7 @@ async function addOpCardFromApi(card) {
       price: card.price || null,
       emoji: card.emoji,
     });
-    toast(`✅ ${card.name} ajouté !`);
+    toast('✅ ' + card.name + ' ajouté !');
     document.getElementById('op-search-id').value = '';
     document.getElementById('op-search-result').innerHTML = '';
     refreshOpCollection();
