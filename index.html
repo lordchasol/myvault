@@ -521,8 +521,8 @@ function renderOP() {
     const rarity = c.rarity || 'common';
     const col = cols[rarity] || '#5a6278';
     const emoji = c.emoji || '🃏';
-    const price = c.price || '';
     const setName = c.set_name || c.set || '';
+    const cardId = `op-price-${i}`;
     const d = document.createElement('div');
     d.className = 'citem fi';
     d.style.animationDelay = `${i * 0.06}s`;
@@ -538,7 +538,7 @@ function renderOP() {
         <div class="cname">${c.name}</div>
         <div class="cmeta">
           <span class="cset">${setName}</span>
-          ${price ? `<span class="cprice">${price}</span>` : ''}
+          <span class="cprice" id="${cardId}">${c.price || '…'}</span>
         </div>
       </div>
       <div class="cactions">
@@ -546,7 +546,35 @@ function renderOP() {
         <div class="abtn abtn-offer" onclick="openModal('${c.name} · ${setName}')">Offrir</div>
       </div>`;
     g.appendChild(d);
+
+    // Fetch prix en temps réel si on a le numéro de carte
+    if (c.number) fetchOpPrice(c.number, cardId);
   });
+}
+
+async function fetchOpPrice(number, elId) {
+  // Nettoyer le suffixe variante (_p1, _p2...) pour l'API
+  const cleanNum = number.replace(/_p\d+$/, '').toUpperCase();
+  try {
+    const r = await fetch(`https://onepiece.limitlesstcg.com/cards/${cleanNum}?format=json`, {
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const el = document.getElementById(elId);
+    if (!el) return;
+    // limitlesstcg retourne avg1, avg7, avg30 (prix moyens sur 1/7/30 jours)
+    const price = data.avg7 || data.avg1 || data.avg30 || data.low || null;
+    if (price) {
+      el.textContent = `$${Number(price).toFixed(2)}`;
+      el.title = 'Prix moyen 7 jours — limitlesstcg.com';
+    } else {
+      el.textContent = '—';
+    }
+  } catch {
+    const el = document.getElementById(elId);
+    if (el && el.textContent === '…') el.textContent = '—';
+  }
 }
 
 // ═══════════════════════════════════════
