@@ -275,66 +275,9 @@
   <div class="flinks">
     <span class="flink" onclick="openModal('Contact général')">Contact</span>
     <span class="flink" onclick="showToast('🔗 4 wallets Solana indexés')">Wallets</span>
-    <span class="flink" onclick="openAdmin()" style="color:rgba(200,241,53,.35)">⚙ Admin</span>
+    <a href="/admin.html" style="color:rgba(200,241,53,.35);text-decoration:none" class="flink">⚙ Admin</a>
   </div>
 </footer>
-
-<!-- ADMIN MODAL -->
-<div id="admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#0e1420;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto">
-
-    <!-- LOGIN -->
-    <div id="admin-login">
-      <div style="font-size:20px;font-weight:800;margin-bottom:6px">⚙ Console Admin</div>
-      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:20px">Accès restreint — MyVault</div>
-      <input id="admin-pwd" type="password" placeholder="Mot de passe..." class="minput"
-        onkeydown="if(event.key==='Enter')adminLogin()" style="margin-bottom:10px"/>
-      <div id="admin-login-err" style="display:none;color:#ff6b6b;font-family:'DM Mono',monospace;font-size:11px;margin-bottom:10px">⚠ Mot de passe incorrect</div>
-      <div style="display:flex;gap:8px">
-        <button class="mbtn mbtn-p" onclick="adminLogin()" style="flex:1">Connexion</button>
-        <button class="mbtn mbtn-c" onclick="closeAdmin()" style="flex:0 0 auto;padding:12px 20px">Annuler</button>
-      </div>
-    </div>
-
-    <!-- PANEL -->
-    <div id="admin-panel" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-        <div>
-          <div style="font-size:18px;font-weight:800">⚙ Gestion Pokémon</div>
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)" id="admin-total"></div>
-        </div>
-        <button class="mbtn mbtn-c" onclick="closeAdmin()" style="padding:8px 16px;font-size:12px">✕ Fermer</button>
-      </div>
-
-      <!-- AJOUTER -->
-      <div style="background:#141c2e;border:1px solid rgba(200,241,53,.1);border-radius:12px;padding:16px;margin-bottom:20px">
-        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:12px;font-family:'DM Mono',monospace;letter-spacing:.05em;text-transform:uppercase">+ Ajouter une carte</div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="flex:1">
-            <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">N° DE CARTE *</div>
-            <input id="admin-num" class="minput" placeholder="ex: 155  ou  TG06" style="margin:0"
-              onkeydown="if(event.key==='Enter')adminAddCard()"/>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">CODE SET (optionnel)</div>
-            <input id="admin-set" class="minput" placeholder="ex: sv3  sv4  swsh9tg" style="margin:0"
-              onkeydown="if(event.key==='Enter')adminAddCard()"/>
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:10px;line-height:1.6">
-          💡 Tu trouveras le code set sur <a href="https://pokemontcg.io" target="_blank" style="color:var(--accent)">pokemontcg.io</a> — ex: sv3 = Obsidian Flames, sv4 = Paradox Rift
-        </div>
-        <button id="admin-add-btn" class="mbtn mbtn-p" onclick="adminAddCard()" style="width:100%">+ Ajouter</button>
-      </div>
-
-      <!-- LISTE -->
-      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace;letter-spacing:.05em;text-transform:uppercase">Collection actuelle</div>
-      <div id="admin-card-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px"></div>
-
-      <button class="mbtn mbtn-c" onclick="adminResetCards()" style="width:100%;font-size:11px;opacity:.5">↺ Réinitialiser aux cartes par défaut</button>
-    </div>
-  </div>
-</div>
 
 <!-- MODAL -->
 <div class="modal-ov" id="modal">
