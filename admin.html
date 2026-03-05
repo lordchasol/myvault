@@ -706,6 +706,7 @@ async function addSelectedPok() {
         number: card.number || '',
         rarity: card.rarity || 'common',
         img: card.images?.small || '',
+        tcgdex_id: card.id || null,
         price: null,
       });
       added++;
