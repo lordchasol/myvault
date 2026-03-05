@@ -579,27 +579,26 @@ function renderOP() {
 }
 
 async function fetchOpPrice(number, elId) {
-  // Nettoyer le suffixe variante (_p1, _p2...) pour l'API
   const cleanNum = number.replace(/_p\d+$/, '').toUpperCase();
   try {
-    const r = await fetch(`https://onepiece.limitlesstcg.com/cards/${cleanNum}?format=json`, {
-      signal: AbortSignal.timeout(6000)
+    const r = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}`, {
+      headers: { 'Authorization': `Bearer ${SB_KEY}` },
+      signal: AbortSignal.timeout(8000)
     });
-    if (!r.ok) return;
+    if (!r.ok) throw new Error();
     const data = await r.json();
     const el = document.getElementById(elId);
     if (!el) return;
-    // limitlesstcg retourne avg1, avg7, avg30 (prix moyens sur 1/7/30 jours)
-    const price = data.avg7 || data.avg1 || data.avg30 || data.low || null;
+    const price = data.market_price || data.avg_price || data.low_price || null;
     if (price) {
       el.textContent = `$${Number(price).toFixed(2)}`;
-      el.title = 'Prix moyen 7 jours — limitlesstcg.com';
+      el.title = 'Cote marché — optcgapi.com';
     } else {
       el.textContent = '—';
     }
   } catch {
     const el = document.getElementById(elId);
-    if (el && el.textContent === '…') el.textContent = '—';
+    if (el) el.textContent = '—';
   }
 }
 
