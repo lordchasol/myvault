@@ -151,6 +151,7 @@
     <div class="sb-logo">My<span>Vault</span></div>
     <button class="sb-item active" id="sb-pok" onclick="showPage('pok')"><span class="ico">⚡</span>Pokémon</button>
     <button class="sb-item" id="sb-op" onclick="showPage('op')"><span class="ico">🏴‍☠️</span>One Piece</button>
+    <button class="sb-item" id="sb-wallets" onclick="showPage('wallets')"><span class="ico">👛</span>Wallets</button>
     <div class="sb-bottom">
       <a class="sb-back" href="https://justmy.sol.site">← Retour au site</a>
     </div>
@@ -267,6 +268,42 @@
       <div id="op-collection"><div class="loading"><div class="spin"></div>Chargement...</div></div>
     </div>
 
+    <!-- PAGE WALLETS -->
+    <div id="page-wallets" style="display:none">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Wallets <span>Solana</span></div>
+          <div class="page-sub">Adresses indexées pour les domaines .sol</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-n" id="wallets-count">—</div><div class="stat-l">Wallets actifs</div></div>
+      </div>
+
+      <!-- FORM AJOUT -->
+      <div class="op-form">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px">+ Ajouter un wallet</div>
+        <div class="form-grid">
+          <div class="form-field" style="grid-column:1/-1">
+            <label>Adresse Solana *</label>
+            <input id="wallet-addr" placeholder="ex: 3RfmMZjvM3DwyP26b9PMK1zR1pMPbpTfZuKVMs8kgcnn"/>
+          </div>
+          <div class="form-field">
+            <label>Label (nom affiché)</label>
+            <input id="wallet-label" placeholder="ex: Wallet Principal"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addWallet()" style="width:100%">+ Ajouter</button>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Wallets actifs</div>
+        <button class="btn btn-ghost" onclick="refreshWallets()" style="font-size:11px;padding:7px 14px">↺ Actualiser</button>
+      </div>
+      <div id="wallets-list"><div class="loading"><div class="spin"></div>Chargement...</div></div>
+    </div>
+
   </div>
 </div>
 
@@ -352,7 +389,7 @@ document.getElementById('login-pwd').addEventListener('keydown', e => {
 // NAVIGATION
 // ══════════════════════════════════════════
 function showPage(id) {
-  ['pok','op'].forEach(p => {
+  ['pok','op','wallets'].forEach(p => {
     document.getElementById(`page-${p}`).style.display = p === id ? 'block' : 'none';
     document.getElementById(`sb-${p}`).classList.toggle('active', p === id);
   });
@@ -806,12 +843,78 @@ async function addOpCard() {
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// WALLETS
+// ══════════════════════════════════════════
+async function refreshWallets() {
+  const el = document.getElementById('wallets-list');
+  el.innerHTML = `<div class="loading"><div class="spin"></div>Chargement...</div>`;
+  try {
+    const wallets = await sbGet('wallets');
+    document.getElementById('wallets-count').textContent = wallets.length;
+    if (wallets.length === 0) {
+      el.innerHTML = `<div class="empty">Aucun wallet configuré</div>`;
+      return;
+    }
+    el.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'collection';
+    wallets.forEach(w => {
+      const row = document.createElement('div');
+      row.className = 'col-card';
+      row.innerHTML = `
+        <div style="width:44px;height:44px;background:rgba(153,69,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">👛</div>
+        <div class="col-info">
+          <div class="col-name">${w.label}</div>
+          <div class="col-meta" style="font-size:9px;word-break:break-all">${w.address}</div>
+        </div>
+        <button class="btn btn-ghost" style="padding:6px 10px;font-size:11px;margin-left:8px;flex-shrink:0" onclick="copyAddr('${w.address}')">📋</button>
+        <button class="btn btn-danger" style="padding:6px 10px;font-size:11px;margin-left:4px;flex-shrink:0" data-id="${w.id}" data-label="${w.label}">✕</button>`;
+      row.querySelector('.btn-danger').addEventListener('click', async function() {
+        if (!confirm(`Supprimer "${this.dataset.label}" ?`)) return;
+        try {
+          await sbDelete('wallets', this.dataset.id);
+          toast(`🗑️ ${this.dataset.label} supprimé`);
+          refreshWallets();
+        } catch { toast('❌ Erreur suppression'); }
+      });
+      wrap.appendChild(row);
+    });
+    el.appendChild(wrap);
+  } catch (e) {
+    el.innerHTML = `<div class="empty" style="color:var(--red)">Erreur : ${e.message}</div>`;
+  }
+}
+
+async function addWallet() {
+  const addr  = document.getElementById('wallet-addr').value.trim();
+  const label = document.getElementById('wallet-label').value.trim() || 'Wallet';
+  if (!addr) { toast('⚠ Adresse requise'); return; }
+  if (addr.length < 32) { toast('⚠ Adresse Solana invalide'); return; }
+  try {
+    await sbInsert('wallets', { address: addr, label });
+    toast(`✅ ${label} ajouté !`);
+    document.getElementById('wallet-addr').value = '';
+    document.getElementById('wallet-label').value = '';
+    refreshWallets();
+  } catch (e) {
+    if (e.message.includes('unique') || e.message.includes('duplicate')) {
+      toast('⚠ Ce wallet est déjà dans la liste');
+    } else {
+      toast('❌ Erreur : ' + e.message);
+    }
+  }
+}
+
+function copyAddr(addr) {
+  navigator.clipboard.writeText(addr).then(() => toast('📋 Adresse copiée !'));
+}
+
 function initApp() {
-  loadAllSets().then(() => {
-    console.log('Sets prêts pour la recherche');
-  });
+  loadAllSets().then(() => { console.log('Sets prêts'); });
   refreshPokCollection();
   refreshOpCollection();
+  refreshWallets();
 }
 </script>
 </body>
