@@ -573,12 +573,28 @@ function renderOP() {
       </div>`;
     g.appendChild(d);
 
-    // Fetch prix en temps réel si on a le numéro de carte
-    if (c.number) fetchOpPrice(c.number, c.rarity || '', cardId);
+    // Prix : afficher le cache immédiatement, rafraîchir si +24h
+    const cachedPrice = c.cached_price;
+    const priceAge = c.price_updated_at ? (Date.now() - new Date(c.price_updated_at).getTime()) : Infinity;
+    const needsRefresh = priceAge > 24 * 60 * 60 * 1000; // 24h
+
+    if (c.number) fetchOpPrice(c.number, c.rarity || '', cardId, c.id, cachedPrice, needsRefresh);
   });
 }
 
-async function fetchOpPrice(number, rarity, elId) {
+async function fetchOpPrice(number, rarity, elId, dbId, cachedPrice, needsRefresh) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  // Afficher le cache immédiatement si disponible
+  if (cachedPrice) {
+    el.textContent = `$${Number(cachedPrice).toFixed(2)}`;
+    el.title = 'Cote marché (JustTCG)';
+  }
+
+  // Ne pas appeler l'API si le cache est encore frais
+  if (!needsRefresh) return;
+
   const cleanNum = number.replace(/_p\d+$/, '').toUpperCase();
   try {
     const r = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}&rarity=${encodeURIComponent(rarity)}`, {
@@ -586,20 +602,23 @@ async function fetchOpPrice(number, rarity, elId) {
       signal: AbortSignal.timeout(8000)
     });
     const data = await r.json();
-    console.log('op-price response for', cleanNum, ':', JSON.stringify(data));
-    const el = document.getElementById(elId);
-    if (!el) return;
     const price = data.market_price || data.avg_price_7d || null;
+
     if (price) {
       el.textContent = `$${Number(price).toFixed(2)}`;
-      el.title = 'Cote marché — optcgapi.com';
-    } else {
+      el.title = 'Cote marché (JustTCG)';
+
+      // Sauvegarder le prix en cache dans Supabase
+      await fetch(`${SB_URL}/rest/v1/op_cards?id=eq.${dbId}`, {
+        method: 'PATCH',
+        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ cached_price: price, price_updated_at: new Date().toISOString() })
+      });
+    } else if (!cachedPrice) {
       el.textContent = '—';
     }
   } catch (e) {
-    console.log('op-price error for', cleanNum, ':', e.message);
-    const el = document.getElementById(elId);
-    if (el) el.textContent = '—';
+    if (!cachedPrice && el) el.textContent = '—';
   }
 }
 
