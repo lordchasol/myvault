@@ -264,10 +264,12 @@
           <div class="form-field">
             <label>Rareté</label>
             <select id="op-rarity">
+              <option value="leader">Leader</option>
               <option value="sr">Secret Rare (SR)</option>
               <option value="holo">Holo Rare</option>
               <option value="rare" selected>Rare</option>
               <option value="common">Common</option>
+              <option value="promo">Promo</option>
             </select>
           </div>
           <div class="form-field">
@@ -896,17 +898,25 @@ async function searchOpCard() {
     <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">
       ${variants.length} variante${plural ? 's' : ''} trouvée${plural ? 's' : ''} · <span style="color:var(--text)">${cardName}</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px" id="op-variants-grid"></div>
-    <input id="op-result-price" class="minput" placeholder="Prix (optionnel, ex: € 15)" style="margin-top:12px"/>`;
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px" id="op-variants-grid"></div>`;
 
   const grid = document.getElementById('op-variants-grid');
   variants.forEach((v, i) => {
     const card = document.createElement('div');
     card.style.cssText = 'background:var(--surface);border:2px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s;position:relative';
     card.innerHTML = `
-      <div style="position:absolute;top:8px;left:8px;font-family:\'DM Mono\',monospace;font-size:9px;background:rgba(0,0,0,.7);padding:3px 7px;border-radius:4px;color:var(--muted)">${v.label}</div>
+      <div style="position:absolute;top:8px;left:8px;font-family:'DM Mono',monospace;font-size:9px;background:rgba(0,0,0,.7);padding:3px 7px;border-radius:4px;color:var(--muted)">${v.label}</div>
       <img src="${v.url}" style="width:100%;display:block"/>
-      <div style="padding:10px">
+      <div style="padding:10px;display:flex;flex-direction:column;gap:6px">
+        <select id="op-rarity-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;width:100%">
+          <option value="rare" ${v.rarity==='rare'?'selected':''}>Rare</option>
+          <option value="holo" ${v.rarity==='holo'?'selected':''}>Holo Rare</option>
+          <option value="sr" ${v.rarity==='sr'?'selected':''}>Secret Rare / SR</option>
+          <option value="leader" ${v.rarity==='leader'?'selected':''}>Leader</option>
+          <option value="common" ${v.rarity==='common'?'selected':''}>Common</option>
+          <option value="promo" ${v.rarity==='promo'?'selected':''}>Promo</option>
+        </select>
+        <input id="op-price-${i}" class="minput" placeholder="Prix (ex: € 15)" style="margin:0;font-size:11px"/>
         <button class="btn btn-primary" style="width:100%;font-size:11px;padding:8px" id="op-add-btn-${i}">+ Ajouter</button>
       </div>`;
     card.querySelector('img').addEventListener('click', () => card.querySelector('button').click());
@@ -915,7 +925,9 @@ async function searchOpCard() {
     const btn = card.querySelector('button');
     btn._cardData = { name: cardName, set_name: setName, number: input + (i > 0 ? suffixes[i] : ''), rarity: v.rarity, img: v.url, emoji: '🏴‍☠️' };
     btn.addEventListener('click', function() {
-      const price = document.getElementById('op-result-price')?.value.trim() || null;
+      // Récupérer la rareté sélectionnée et le prix depuis ce variant
+      this._cardData.rarity = document.getElementById(`op-rarity-${i}`)?.value || this._cardData.rarity;
+      const price = document.getElementById(`op-price-${i}`)?.value.trim() || null;
       addOpCardFromApi(this, price);
     });
     grid.appendChild(card);
@@ -923,7 +935,15 @@ async function searchOpCard() {
 }
 
 function mapOpRarity(r) {
-  const m = { 'L':'sr','SEC':'sr','SR':'sr','R':'rare','UC':'holo','C':'common','P':'promo','SP CARD':'sr','LEADER':'sr' };
+  const m = {
+    'L':'leader','LEADER':'leader',
+    'SEC':'sr','SR':'sr','SP CARD':'sr','SPECIAL CARD':'sr',
+    'R':'rare',
+    'UC':'holo','UNCOMMON':'holo',
+    'C':'common','COMMON':'common',
+    'P':'promo','PROMO':'promo',
+    'DON':'common'
+  };
   return m[r.toUpperCase()] || 'rare';
 }
 
