@@ -314,12 +314,24 @@
 // ═══════════════════════════════════════
 // CONFIG — WALLETS SOLANA
 // ═══════════════════════════════════════
-const WALLETS = [
-  { addr:'3RfmMZjvM3DwyP26b9PMK1zR1pMPbpTfZuKVMs8kgcnn', label:'Wallet 1' },
-  { addr:'4UPpQcj9Ut3HNh1yR7VEAwY5u8nHirKGUFZciwb4eBAh', label:'Wallet 2' },
-  { addr:'ChUbASacKjEd9wRtunZMQdJMK88YXon2PqeD7ezS9qhr', label:'Wallet 3' },
-  { addr:'4exhkMWo8UhYNicmWxjpZXLkb5cKZ1sDpxmzJZ6ouBna', label:'Wallet 4' },
-];
+let WALLETS = []; // Chargé depuis Supabase
+
+async function loadWallets() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/wallets?select=*&order=created_at.asc`, { headers: sbHeaders });
+    if (!r.ok) throw new Error('fetch failed');
+    const data = await r.json();
+    WALLETS = data.map(w => ({ addr: w.address, label: w.label }));
+  } catch {
+    // Fallback wallets si Supabase inaccessible
+    WALLETS = [
+      { addr:'3RfmMZjvM3DwyP26b9PMK1zR1pMPbpTfZuKVMs8kgcnn', label:'Wallet 1' },
+      { addr:'4UPpQcj9Ut3HNh1yR7VEAwY5u8nHirKGUFZciwb4eBAh', label:'Wallet 2' },
+      { addr:'ChUbASacKjEd9wRtunZMQdJMK88YXon2PqeD7ezS9qhr', label:'Wallet 3' },
+      { addr:'4exhkMWo8UhYNicmWxjpZXLkb5cKZ1sDpxmzJZ6ouBna', label:'Wallet 4' },
+    ];
+  }
+}
 
 // ═══════════════════════════════════════
 // ═══════════════════════════════════════
@@ -884,7 +896,7 @@ function switchTab(id, el) {
   el.classList.add('active');
   document.getElementById('panel-' + id).classList.add('active');
   if (id === 'op' && !opReady) { opReady = true; renderOP(); }
-  if (id === 'sns' && !snsLoaded) { snsLoaded = true; loadSNS(); }
+  if (id === 'sns' && !snsLoaded) { snsLoaded = true; loadWallets().then(() => loadSNS()); }
 }
 
 function tf(btn) {
