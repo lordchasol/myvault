@@ -264,12 +264,14 @@
           <div class="form-field">
             <label>Rareté</label>
             <select id="op-rarity">
-              <option value="leader">Leader</option>
-              <option value="sr">Secret Rare (SR)</option>
-              <option value="holo">Holo Rare</option>
-              <option value="rare" selected>Rare</option>
-              <option value="common">Common</option>
-              <option value="promo">Promo</option>
+              <option value="common">C — Commun</option>
+              <option value="uc">UC — Peu commun</option>
+              <option value="rare" selected>R — Rare</option>
+              <option value="leader">L — Leader</option>
+              <option value="sr">SR — Super Rare</option>
+              <option value="sec">SEC — Secret Rare</option>
+              <option value="sp">SP — Special Rare</option>
+              <option value="golden">Golden DON!!</option>
             </select>
           </div>
           <div class="form-field">
@@ -909,12 +911,14 @@ async function searchOpCard() {
       <img src="${v.url}" style="width:100%;display:block"/>
       <div style="padding:10px;display:flex;flex-direction:column;gap:6px">
         <select id="op-rarity-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;width:100%">
-          <option value="rare" ${v.rarity==='rare'?'selected':''}>Rare</option>
-          <option value="holo" ${v.rarity==='holo'?'selected':''}>Holo Rare</option>
-          <option value="sr" ${v.rarity==='sr'?'selected':''}>Secret Rare / SR</option>
-          <option value="leader" ${v.rarity==='leader'?'selected':''}>Leader</option>
-          <option value="common" ${v.rarity==='common'?'selected':''}>Common</option>
-          <option value="promo" ${v.rarity==='promo'?'selected':''}>Promo</option>
+          <option value="common"  ${v.rarity==='common' ?'selected':''}>C — Commun</option>
+          <option value="uc"      ${v.rarity==='uc'     ?'selected':''}>UC — Peu commun</option>
+          <option value="rare"    ${v.rarity==='rare'   ?'selected':''}>R — Rare</option>
+          <option value="leader"  ${v.rarity==='leader' ?'selected':''}>L — Leader</option>
+          <option value="sr"      ${v.rarity==='sr'     ?'selected':''}>SR — Super Rare</option>
+          <option value="sec"     ${v.rarity==='sec'    ?'selected':''}>SEC — Secret Rare</option>
+          <option value="sp"      ${v.rarity==='sp'     ?'selected':''}>SP — Special Rare</option>
+          <option value="golden"  ${v.rarity==='golden' ?'selected':''}>Golden DON!!</option>
         </select>
         <input id="op-price-${i}" class="minput" placeholder="Prix (ex: € 15)" style="margin:0;font-size:11px"/>
         <button class="btn btn-primary" style="width:100%;font-size:11px;padding:8px" id="op-add-btn-${i}">+ Ajouter</button>
@@ -936,13 +940,15 @@ async function searchOpCard() {
 
 function mapOpRarity(r) {
   const m = {
-    'L':'leader','LEADER':'leader',
-    'SEC':'sr','SR':'sr','SP CARD':'sr','SPECIAL CARD':'sr',
-    'R':'rare',
-    'UC':'holo','UNCOMMON':'holo',
     'C':'common','COMMON':'common',
+    'UC':'uc','UNCOMMON':'uc',
+    'R':'rare',
+    'L':'leader','LEADER':'leader',
+    'SR':'sr','SUPER RARE':'sr',
+    'SEC':'sec','SECRET RARE':'sec',
+    'SP':'sp','SPECIAL RARE':'sp','SP CARD':'sp','SPECIAL CARD':'sp',
     'P':'promo','PROMO':'promo',
-    'DON':'common'
+    'GOLDEN':'golden','DON':'common',
   };
   return m[r.toUpperCase()] || 'rare';
 }
