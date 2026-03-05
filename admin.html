@@ -836,69 +836,91 @@ function renderOpCollection(cards) {
 }
 
 // ══════════════════════════════════════════
-// ONE PIECE — recherche via optcgapi.com
+// ONE PIECE — recherche par numéro de carte
+// Images: site officiel Bandai
+// Noms: limitlesstcg.com
 // ══════════════════════════════════════════
 async function searchOpCard() {
   const input = document.getElementById('op-search-id').value.trim().toUpperCase();
   const resultEl = document.getElementById('op-search-result');
-  if (!input) { toast('⚠ Entre un numéro de carte'); return; }
+  if (!input) { toast('⚠ Entre un numéro de carte ex: OP11-018'); return; }
 
-  resultEl.innerHTML = `<div class="loading"><div class="spin"></div>Recherche ${input}...</div>`;
+  // Valider format: OP01-001, ST01-001, EB01-001, PRB01-001
+  if (!/^(OP|ST|EB|PRB|P)\d{2}-\d{3}$/i.test(input)) {
+    resultEl.innerHTML = `<div style="background:var(--surface2);border:1px solid rgba(255,107,107,.2);border-radius:12px;padding:16px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">
+      Format attendu: <span style="color:var(--accent)">OP11-018</span>, ST01-001, EB01-001
+    </div>`;
+    return;
+  }
 
-  // Détecter si c'est un starter deck (ST) ou un set (OP/EB/PRB)
-  const isStarter = input.startsWith('ST');
-  const url = isStarter
-    ? `https://optcgapi.com/api/decks/card/${input}/`
-    : `https://optcgapi.com/api/sets/card/${input}/`;
+  resultEl.innerHTML = `<div class="loading"><div class="spin"></div>Chargement...</div>`;
+
+  // URL image officielle Bandai (EN)
+  const imgUrl = `https://en.onepiece-cardgame.com/images/cardlist/card/${input}.png`;
+
+  // Essayer de récupérer le nom via limitlesstcg
+  let cardName = input;
+  let rarity = 'rare';
+  let setName = input.replace(/-\d+$/, '');
 
   try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`Carte "${input}" introuvable`);
-    const card = await r.json();
+    const r = await fetch(`https://onepiece.limitlesstcg.com/cards/${input}?format=json`, { signal: AbortSignal.timeout(4000) });
+    if (r.ok) {
+      const data = await r.json();
+      cardName = data.name || input;
+      rarity = mapOpRarity(data.rarity || '');
+      setName = data.set?.name || setName;
+    }
+  } catch { /* nom indisponible, on garde le numéro */ }
 
-    // Mapper la rareté
-    const rarityMap = { 'L':'sr', 'SEC':'sr', 'SR':'sr', 'R':'rare', 'UC':'holo', 'C':'common', 'P':'promo' };
-    const rarity = rarityMap[card.rarity] || 'rare';
-    const imgUrl = card.card_image || '';
-    const setName = card.set_name || input.split('-')[0];
-    const price = card.market_price ? `$${card.market_price}` : '';
+  // Vérifier que l'image existe
+  const imgExists = await checkImage(imgUrl);
+  const finalImg = imgExists ? imgUrl : '';
 
-    resultEl.innerHTML = `
-      <div style="background:var(--surface);border:1px solid rgba(200,241,53,.2);border-radius:12px;padding:16px;display:flex;gap:16px;align-items:flex-start">
-        ${imgUrl
-          ? `<img src="${imgUrl}" style="width:80px;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'"/>`
-          : `<div style="width:80px;height:112px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🏴‍☠️</div>`
-        }
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${card.name || input}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px">${input} · ${setName}</div>
-          ${card.rarity ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);margin-bottom:4px">Rareté: ${card.rarity}</div>` : ''}
-          ${price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:10px">Prix: ${price}</div>` : ''}
-          <button class="btn btn-primary" style="width:100%" onclick="addOpCardFromApi(this)">+ Ajouter à la collection</button>
-        </div>
-      </div>`;
+  resultEl.innerHTML = `
+    <div style="background:var(--surface);border:1px solid rgba(200,241,53,.2);border-radius:12px;padding:16px;display:flex;gap:16px;align-items:flex-start">
+      ${finalImg
+        ? `<img src="${finalImg}" style="width:90px;border-radius:8px;flex-shrink:0"/>`
+        : `<div style="width:90px;height:126px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0">🏴‍☠️</div>`
+      }
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">${cardName}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:12px">${input} · ${setName}</div>
+        <input id="op-result-price" class="minput" placeholder="Prix (optionnel, ex: € 15)" style="margin:0 0 10px 0"/>
+        <button class="btn btn-primary" style="width:100%" id="op-result-add-btn">+ Ajouter à la collection</button>
+      </div>
+    </div>`;
 
-    // Stocker les données sur le bouton pour éviter les problèmes de quotes
-    const btn = resultEl.querySelector('.btn-primary');
-    btn._cardData = {
-      name: card.name || input,
-      set_name: setName,
-      number: input,
-      rarity,
-      img: imgUrl,
-      price,
-      emoji: '🏴\u200d☠️'
-    };
-  } catch (e) {
-    resultEl.innerHTML = `
-      <div style="background:var(--surface2);border:1px solid rgba(255,107,107,.2);border-radius:12px;padding:16px;text-align:center">
-        <div style="font-size:13px;color:var(--red);margin-bottom:8px">⚠ ${e.message.includes('introuvable') ? e.message : 'API inaccessible (CORS) — utilise l\'ajout manuel'}</div>
-        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">Essaie le format exact: OP01-001, ST01-001, EB01-001</div>
-      </div>`;
-  }
+  document.getElementById('op-result-add-btn')._cardData = {
+    name: cardName,
+    set_name: setName,
+    number: input,
+    rarity,
+    img: finalImg || null,
+    emoji: '🏴‍☠️'
+  };
+  document.getElementById('op-result-add-btn').addEventListener('click', function() {
+    const price = document.getElementById('op-result-price')?.value.trim() || null;
+    addOpCardFromApi(this, price);
+  });
 }
 
-async function addOpCardFromApi(btn) {
+function mapOpRarity(r) {
+  const m = { 'L':'sr','SEC':'sr','SR':'sr','R':'rare','UC':'holo','C':'common','P':'promo','SP CARD':'sr','LEADER':'sr' };
+  return m[r.toUpperCase()] || 'rare';
+}
+
+function checkImage(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+    setTimeout(() => resolve(false), 5000);
+  });
+}
+
+async function addOpCardFromApi(btn, price) {
   const card = btn._cardData;
   if (!card) { toast('❌ Données manquantes'); return; }
   try {
@@ -908,7 +930,7 @@ async function addOpCardFromApi(btn) {
       number: card.number,
       rarity: card.rarity,
       img: card.img || null,
-      price: card.price || null,
+      price: price || null,
       emoji: card.emoji,
     });
     toast('✅ ' + card.name + ' ajouté !');
