@@ -418,16 +418,25 @@ const POK_CARDS_DEFAULT = [
 ];
 
 // ═══════════════════════════════════════
-// CARTES ONE PIECE
+// CARTES ONE PIECE — chargées depuis Supabase
 // ═══════════════════════════════════════
-const OP_CARDS = [
-  { name:'Monkey D. Luffy', set:'OP-01 Romance Dawn', price:'€ 280', rarity:'sr',   e:'🏴‍☠️' },
-  { name:'Roronoa Zoro',    set:'OP-01 Romance Dawn', price:'€ 95',  rarity:'holo', e:'⚔️' },
-  { name:'Nami Alt Art',    set:'OP-04 Kingdoms',     price:'€ 180', rarity:'sr',   e:'🌊' },
-  { name:'Shanks Leader',   set:'OP-01 Romance Dawn', price:'€ 320', rarity:'rare', e:'👑' },
-  { name:'Trafalgar Law',   set:'OP-02 Paramount',    price:'€ 75',  rarity:'holo', e:'🗺️' },
-  { name:'Kaido',           set:'OP-03 Pillars',      price:'€ 450', rarity:'sr',   e:'💀' },
-];
+let OP_CARDS = [];
+
+async function loadOpCards() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/op_cards?select=*&order=created_at.asc`, { headers: sbHeaders });
+    if (!r.ok) throw new Error('fetch failed');
+    OP_CARDS = await r.json();
+  } catch {
+    OP_CARDS = [];
+  }
+  renderOP();
+  const n = OP_CARDS.length;
+  const sOp = document.getElementById('s-op');
+  const tcOp = document.getElementById('tc-op');
+  if (sOp) sOp.textContent = n;
+  if (tcOp) tcOp.textContent = n;
+}
 
 const RL = { ex:'EX', holo:'HOLO', rare:'RARE', sr:'SR', promo:'PROMO', common:'COM' };
 
@@ -499,40 +508,45 @@ function filterPok(type, btn) {
 }
 
 // ═══════════════════════════════════════
-// ONE PIECE — rendu instantané
+// ONE PIECE — rendu depuis Supabase
 // ═══════════════════════════════════════
 let opReady = false;
 
 function renderOP() {
   const g = document.getElementById('op-grid');
   g.innerHTML = '';
+  if (!OP_CARDS.length) return;
   const cols = { sr:'#ff3c3c', holo:'#f5c842', rare:'#c8f135', common:'#5a6278' };
   OP_CARDS.forEach((c, i) => {
-    const col = cols[c.rarity] || '#5a6278';
+    const rarity = c.rarity || 'common';
+    const col = cols[rarity] || '#5a6278';
+    const emoji = c.emoji || '🃏';
+    const price = c.price || '';
+    const setName = c.set_name || c.set || '';
     const d = document.createElement('div');
     d.className = 'citem fi';
     d.style.animationDelay = `${i * 0.06}s`;
     d.innerHTML = `
       <div class="cimg" style="background:linear-gradient(160deg,#080b10,#0e1420,${col}18)">
-        <div style="font-size:52px;position:relative;z-index:1">${c.e}</div>
-        <span class="crarity r-${c.rarity}">${RL[c.rarity]||c.rarity.toUpperCase()}</span>
+        ${c.img
+          ? `<img src="${c.img}" alt="${c.name}" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;border-radius:inherit"/>`
+          : `<div style="font-size:52px;position:relative;z-index:1">${emoji}</div>`
+        }
+        <span class="crarity r-${rarity}">${RL[rarity]||rarity.toUpperCase()}</span>
       </div>
       <div class="cinfo">
         <div class="cname">${c.name}</div>
         <div class="cmeta">
-          <span class="cset">${c.set}</span>
-          <span class="cprice">${c.price}</span>
+          <span class="cset">${setName}</span>
+          ${price ? `<span class="cprice">${price}</span>` : ''}
         </div>
       </div>
       <div class="cactions">
         <div class="abtn abtn-view" onclick="showToast('🔍 ${c.name}')">Détails</div>
-        <div class="abtn abtn-offer" onclick="openModal('${c.name} · ${c.set}')">Offrir</div>
+        <div class="abtn abtn-offer" onclick="openModal('${c.name} · ${setName}')">Offrir</div>
       </div>`;
     g.appendChild(d);
   });
-  const n = OP_CARDS.length;
-  document.getElementById('s-op').textContent = n;
-  document.getElementById('tc-op').textContent = n;
 }
 
 // ═══════════════════════════════════════
@@ -949,7 +963,8 @@ function showToast(msg) {
 // INIT
 // ═══════════════════════════════════════
 loadPokemon();
-loadWallets(); // Met à jour le compteur wallets dès le chargement
+loadOpCards();
+loadWallets();
 </script>
 </body>
 </html>
