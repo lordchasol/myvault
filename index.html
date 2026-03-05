@@ -585,8 +585,8 @@ async function fetchOpPrice(number, elId) {
       headers: { 'Authorization': `Bearer ${SB_KEY}` },
       signal: AbortSignal.timeout(8000)
     });
-    if (!r.ok) throw new Error();
     const data = await r.json();
+    console.log('op-price response for', cleanNum, ':', JSON.stringify(data));
     const el = document.getElementById(elId);
     if (!el) return;
     const price = data.market_price || data.avg_price || data.low_price || null;
@@ -596,7 +596,8 @@ async function fetchOpPrice(number, elId) {
     } else {
       el.textContent = '—';
     }
-  } catch {
+  } catch (e) {
+    console.log('op-price error for', cleanNum, ':', e.message);
     const el = document.getElementById(elId);
     if (el) el.textContent = '—';
   }
