@@ -574,14 +574,14 @@ function renderOP() {
     g.appendChild(d);
 
     // Fetch prix en temps réel si on a le numéro de carte
-    if (c.number) fetchOpPrice(c.number, cardId);
+    if (c.number) fetchOpPrice(c.number, c.rarity || '', cardId);
   });
 }
 
-async function fetchOpPrice(number, elId) {
+async function fetchOpPrice(number, rarity, elId) {
   const cleanNum = number.replace(/_p\d+$/, '').toUpperCase();
   try {
-    const r = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}`, {
+    const r = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}&rarity=${encodeURIComponent(rarity)}`, {
       headers: { 'Authorization': `Bearer ${SB_KEY}` },
       signal: AbortSignal.timeout(8000)
     });
