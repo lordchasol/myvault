@@ -845,7 +845,6 @@ async function searchOpCard() {
   const resultEl = document.getElementById('op-search-result');
   if (!input) { toast('⚠ Entre un numéro de carte ex: OP11-018'); return; }
 
-  // Valider format: OP01-001, ST01-001, EB01-001, PRB01-001
   if (!/^(OP|ST|EB|PRB|P)\d{2}-\d{3}$/i.test(input)) {
     resultEl.innerHTML = `<div style="background:var(--surface2);border:1px solid rgba(255,107,107,.2);border-radius:12px;padding:16px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">
       Format attendu: <span style="color:var(--accent)">OP11-018</span>, ST01-001, EB01-001
@@ -853,12 +852,9 @@ async function searchOpCard() {
     return;
   }
 
-  resultEl.innerHTML = `<div class="loading"><div class="spin"></div>Chargement...</div>`;
+  resultEl.innerHTML = `<div class="loading"><div class="spin"></div>Recherche des variantes...</div>`;
 
-  // URL image officielle Bandai (EN)
-  const imgUrl = `https://en.onepiece-cardgame.com/images/cardlist/card/${input}.png`;
-
-  // Essayer de récupérer le nom via limitlesstcg
+  // Récupérer le nom via limitlesstcg
   let cardName = input;
   let rarity = 'rare';
   let setName = input.replace(/-\d+$/, '');
@@ -871,37 +867,57 @@ async function searchOpCard() {
       rarity = mapOpRarity(data.rarity || '');
       setName = data.set?.name || setName;
     }
-  } catch { /* nom indisponible, on garde le numéro */ }
+  } catch { /* nom indisponible */ }
 
-  // Vérifier que l'image existe
-  const imgExists = await checkImage(imgUrl);
-  const finalImg = imgExists ? imgUrl : '';
+  // Tester toutes les variantes d'images Bandai en parallèle
+  const suffixes = ['', '_p1', '_p2', '_p3', '_p4'];
+  const variantLabels = ['Normal', 'Variante 1', 'Variante 2', 'Variante 3', 'Variante 4'];
+  const rarities = [rarity, 'holo', 'sr', 'sr', 'sr'];
 
+  const checks = await Promise.all(suffixes.map((s, i) => {
+    const url = `https://en.onepiece-cardgame.com/images/cardlist/card/${input}${s}.png`;
+    return checkImage(url).then(exists => exists ? { url, label: variantLabels[i], rarity: rarities[i] } : null);
+  }));
+
+  const variants = checks.filter(Boolean);
+
+  if (variants.length === 0) {
+    resultEl.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid rgba(255,107,107,.15);border-radius:12px;padding:20px;text-align:center">
+        <div style="font-size:13px;margin-bottom:8px">Aucune image trouvée pour <span style="color:var(--accent)">${input}</span></div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">Utilise l'ajout manuel ci-dessous</div>
+      </div>`;
+    return;
+  }
+
+  const plural = variants.length > 1;
   resultEl.innerHTML = `
-    <div style="background:var(--surface);border:1px solid rgba(200,241,53,.2);border-radius:12px;padding:16px;display:flex;gap:16px;align-items:flex-start">
-      ${finalImg
-        ? `<img src="${finalImg}" style="width:90px;border-radius:8px;flex-shrink:0"/>`
-        : `<div style="width:90px;height:126px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0">🏴‍☠️</div>`
-      }
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px">${cardName}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:12px">${input} · ${setName}</div>
-        <input id="op-result-price" class="minput" placeholder="Prix (optionnel, ex: € 15)" style="margin:0 0 10px 0"/>
-        <button class="btn btn-primary" style="width:100%" id="op-result-add-btn">+ Ajouter à la collection</button>
-      </div>
-    </div>`;
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">
+      ${variants.length} variante${plural ? 's' : ''} trouvée${plural ? 's' : ''} · <span style="color:var(--text)">${cardName}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px" id="op-variants-grid"></div>
+    <input id="op-result-price" class="minput" placeholder="Prix (optionnel, ex: € 15)" style="margin-top:12px"/>`;
 
-  document.getElementById('op-result-add-btn')._cardData = {
-    name: cardName,
-    set_name: setName,
-    number: input,
-    rarity,
-    img: finalImg || null,
-    emoji: '🏴‍☠️'
-  };
-  document.getElementById('op-result-add-btn').addEventListener('click', function() {
-    const price = document.getElementById('op-result-price')?.value.trim() || null;
-    addOpCardFromApi(this, price);
+  const grid = document.getElementById('op-variants-grid');
+  variants.forEach((v, i) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface);border:2px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s;position:relative';
+    card.innerHTML = `
+      <div style="position:absolute;top:8px;left:8px;font-family:\'DM Mono\',monospace;font-size:9px;background:rgba(0,0,0,.7);padding:3px 7px;border-radius:4px;color:var(--muted)">${v.label}</div>
+      <img src="${v.url}" style="width:100%;display:block"/>
+      <div style="padding:10px">
+        <button class="btn btn-primary" style="width:100%;font-size:11px;padding:8px" id="op-add-btn-${i}">+ Ajouter</button>
+      </div>`;
+    card.querySelector('img').addEventListener('click', () => card.querySelector('button').click());
+    card.addEventListener('mouseenter', () => card.style.borderColor = 'var(--accent)');
+    card.addEventListener('mouseleave', () => card.style.borderColor = 'var(--border)');
+    const btn = card.querySelector('button');
+    btn._cardData = { name: cardName, set_name: setName, number: input + (i > 0 ? suffixes[i] : ''), rarity: v.rarity, img: v.url, emoji: '🏴‍☠️' };
+    btn.addEventListener('click', function() {
+      const price = document.getElementById('op-result-price')?.value.trim() || null;
+      addOpCardFromApi(this, price);
+    });
+    grid.appendChild(card);
   });
 }
 
