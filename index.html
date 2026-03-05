@@ -212,7 +212,7 @@
     <div class="sitem"><div class="snum" id="s-pok">—</div><div class="slbl">Cartes Pokémon</div></div>
     <div class="sitem"><div class="snum" id="s-op">—</div><div class="slbl">Cartes One Piece</div></div>
     <div class="sitem"><div class="snum" id="s-dom">—</div><div class="slbl">Domaines .sol</div></div>
-    <div class="sitem"><div class="snum">4</div><div class="slbl">Wallets</div></div>
+    <div class="sitem"><div class="snum" id="stat-wallets">4</div><div class="slbl">Wallets</div></div>
   </div>
 </section>
 
@@ -322,6 +322,8 @@ async function loadWallets() {
     if (!r.ok) throw new Error('fetch failed');
     const data = await r.json();
     WALLETS = data.map(w => ({ addr: w.address, label: w.label }));
+    const el = document.getElementById('stat-wallets');
+    if (el) el.textContent = WALLETS.length;
   } catch {
     // Fallback wallets si Supabase inaccessible
     WALLETS = [
@@ -947,6 +949,7 @@ function showToast(msg) {
 // INIT
 // ═══════════════════════════════════════
 loadPokemon();
+loadWallets(); // Met à jour le compteur wallets dès le chargement
 </script>
 </body>
 </html>
