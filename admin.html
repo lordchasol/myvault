@@ -828,7 +828,7 @@ async function syncAllPrices() {
     bar.style.width = `${Math.round((done / cards.length) * 100)}%`;
 
     try {
-      const pr = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}&rarity=${encodeURIComponent(rarity)}`, {
+      const pr = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}&rarity=${encodeURIComponent(rarity)}&card_id=${card.id}`, {
         headers: { 'Authorization': `Bearer ${SB_KEY}` },
         signal: AbortSignal.timeout(10000)
       });
@@ -836,11 +836,6 @@ async function syncAllPrices() {
       const price = data.market_price || data.avg_price_7d || null;
 
       if (price) {
-        await fetch(`${SB_URL}/rest/v1/op_cards?id=eq.${card.id}`, {
-          method: 'PATCH',
-          headers: { ...sbH, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ cached_price: price, price_updated_at: new Date().toISOString() })
-        });
         updated++;
       } else {
         errors++;
