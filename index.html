@@ -573,54 +573,19 @@ function renderOP() {
       </div>`;
     g.appendChild(d);
 
-    // Prix : afficher le cache immédiatement, rafraîchir si +24h
+    // Prix : afficher uniquement le cache — la sync se fait depuis l'admin
     const cachedPrice = c.cached_price;
-    const priceAge = c.price_updated_at ? (Date.now() - new Date(c.price_updated_at).getTime()) : Infinity;
-    const needsRefresh = priceAge > 24 * 60 * 60 * 1000; // 24h
-
-    if (c.number) fetchOpPrice(c.number, c.rarity || '', cardId, c.id, cachedPrice, needsRefresh);
+    const el_id = cardId;
+    if (cachedPrice) {
+      const el = document.getElementById(el_id);
+      if (el) {
+        el.textContent = `$${Number(cachedPrice).toFixed(2)}`;
+        el.title = 'Cote marché (JustTCG)';
+      }
+    }
   });
 }
 
-async function fetchOpPrice(number, rarity, elId, dbId, cachedPrice, needsRefresh) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-
-  // Afficher le cache immédiatement si disponible
-  if (cachedPrice) {
-    el.textContent = `$${Number(cachedPrice).toFixed(2)}`;
-    el.title = 'Cote marché (JustTCG)';
-  }
-
-  // Ne pas appeler l'API si le cache est encore frais
-  if (!needsRefresh) return;
-
-  const cleanNum = number.replace(/_p\d+$/, '').toUpperCase();
-  try {
-    const r = await fetch(`${SB_URL}/functions/v1/op-price?id=${cleanNum}&rarity=${encodeURIComponent(rarity)}`, {
-      headers: { 'Authorization': `Bearer ${SB_KEY}` },
-      signal: AbortSignal.timeout(8000)
-    });
-    const data = await r.json();
-    const price = data.market_price || data.avg_price_7d || null;
-
-    if (price) {
-      el.textContent = `$${Number(price).toFixed(2)}`;
-      el.title = 'Cote marché (JustTCG)';
-
-      // Sauvegarder le prix en cache dans Supabase
-      await fetch(`${SB_URL}/rest/v1/op_cards?id=eq.${dbId}`, {
-        method: 'PATCH',
-        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ cached_price: price, price_updated_at: new Date().toISOString() })
-      });
-    } else if (!cachedPrice) {
-      el.textContent = '—';
-    }
-  } catch (e) {
-    if (!cachedPrice && el) el.textContent = '—';
-  }
-}
 
 // ═══════════════════════════════════════
 // SOLANA SNS — multi-wallet + listings
