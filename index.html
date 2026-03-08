@@ -240,13 +240,24 @@
 
   <!-- POKÉMON -->
   <div class="panel active" id="panel-pok">
-    <div class="filters">
-      <button class="fbtn active" onclick="filterPok('all',this)">Tous</button>
-      <button class="fbtn" onclick="filterPok('ex',this)">EX / ex</button>
-      <button class="fbtn" onclick="filterPok('holo',this)">Holo / V</button>
-      <button class="fbtn" onclick="filterPok('rare',this)">Rare</button>
-      <button class="fbtn" onclick="filterPok('promo',this)">Promo</button>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <input id="pok-search" type="text" placeholder="🔍 Rechercher..." oninput="applyPokFilters()"
+        style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;outline:none">
+      <select id="pok-set" onchange="applyPokFilters()"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer">
+        <option value="all">Toutes les extensions</option>
+      </select>
+      <select id="pok-rarity" onchange="applyPokFilters()"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer">
+        <option value="all">Toutes les raretés</option>
+        <option value="ex">EX / ex</option>
+        <option value="holo">Holo / V</option>
+        <option value="rare">Rare</option>
+        <option value="promo">Promo</option>
+        <option value="common">Common</option>
+      </select>
     </div>
+    <div id="pok-filter-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:14px;min-height:14px"></div>
     <div class="shdr">
       <span class="stitle" id="pok-stitle">Pokémon TCG</span>
     </div>
@@ -255,12 +266,29 @@
 
   <!-- ONE PIECE -->
   <div class="panel" id="panel-op">
-    <div class="filters">
-      <button class="fbtn active">Tous</button>
-      <button class="fbtn" onclick="tf(this)">Leader</button>
-      <button class="fbtn" onclick="tf(this)">Super Rare</button>
-      <button class="fbtn" onclick="tf(this)">Secret Rare</button>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <input id="op-search" type="text" placeholder="🔍 Rechercher..." oninput="applyOpFilters()"
+        style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;outline:none">
+      <select id="op-set" onchange="applyOpFilters()"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer">
+        <option value="all">Tous les sets</option>
+      </select>
+      <select id="op-rarity" onchange="applyOpFilters()"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer">
+        <option value="all">Toutes les raretés</option>
+        <option value="sec">Secret Rare</option>
+        <option value="sec_manga">SEC Manga</option>
+        <option value="sec_alt">SEC Alt Art</option>
+        <option value="sr">Super Rare</option>
+        <option value="sp">Special</option>
+        <option value="rare">Rare</option>
+        <option value="leader">Leader</option>
+        <option value="uc">Uncommon</option>
+        <option value="common">Common</option>
+        <option value="golden">Golden DON!!</option>
+      </select>
     </div>
+    <div id="op-filter-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:14px;min-height:14px"></div>
     <div class="shdr">
       <span class="stitle">One Piece TCG · Collection</span>
     </div>
@@ -555,6 +583,14 @@ async function loadOpCards() {
     OP_CARDS = [];
   }
   renderOP();
+  // Peupler le select des sets OP
+  const opSets = [...new Set(OP_CARDS.map(c => c.set_name || c.set || '').filter(Boolean))].sort();
+  const opSetEl = document.getElementById('op-set');
+  if (opSetEl) opSets.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    opSetEl.appendChild(o);
+  });
   const n = OP_CARDS.length;
   const sOp = document.getElementById('s-op');
   const tcOp = document.getElementById('tc-op');
@@ -581,6 +617,14 @@ async function loadPokemon() {
   document.getElementById('pok-stitle').textContent = `Pokémon TCG · ${n} cartes`;
   document.getElementById('s-pok').textContent = n;
   document.getElementById('tc-pok').textContent = n;
+  // Peupler le select des extensions Pokémon
+  const pokSets = [...new Set(pokAll.map(c => c.set || '').filter(Boolean))].sort();
+  const pokSetEl = document.getElementById('pok-set');
+  if (pokSetEl) pokSets.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    pokSetEl.appendChild(o);
+  });
 }
 
 function getRarity(r) {
@@ -649,6 +693,26 @@ async function fetchPokPrice(cardId, elId) {
   }
 }
 
+function applyPokFilters() {
+  const search = (document.getElementById('pok-search')?.value || '').toLowerCase().trim();
+  const set = document.getElementById('pok-set')?.value || 'all';
+  const rarity = document.getElementById('pok-rarity')?.value || 'all';
+
+  let filtered = pokAll.filter(c => {
+    if (search && !c.name.toLowerCase().includes(search) && !(c.number||'').toLowerCase().includes(search)) return false;
+    if (set !== 'all' && (c.set||'') !== set) return false;
+    if (rarity !== 'all' && getRarity(c.rarity) !== rarity) return false;
+    return true;
+  });
+
+  const info = document.getElementById('pok-filter-info');
+  if (info) info.textContent = filtered.length !== pokAll.length
+    ? `${filtered.length} carte${filtered.length > 1 ? 's' : ''} affichée${filtered.length > 1 ? 's' : ''} sur ${pokAll.length}`
+    : '';
+
+  renderPok(filtered);
+}
+
 function filterPok(type, btn) {
   document.querySelectorAll('#panel-pok .fbtn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -656,17 +720,41 @@ function filterPok(type, btn) {
   renderPok(filtered.length ? filtered : pokAll);
 }
 
+function applyOpFilters() {
+  const search = (document.getElementById('op-search')?.value || '').toLowerCase().trim();
+  const set = document.getElementById('op-set')?.value || 'all';
+  const rarity = document.getElementById('op-rarity')?.value || 'all';
+
+  let filtered = OP_CARDS.filter(c => {
+    if (search && !c.name.toLowerCase().includes(search) && !(c.number||'').toLowerCase().includes(search)) return false;
+    if (set !== 'all' && (c.set_name||c.set||'') !== set) return false;
+    if (rarity !== 'all' && (c.rarity||'common') !== rarity) return false;
+    return true;
+  });
+
+  const info = document.getElementById('op-filter-info');
+  if (info) info.textContent = filtered.length !== OP_CARDS.length
+    ? `${filtered.length} carte${filtered.length > 1 ? 's' : ''} affichée${filtered.length > 1 ? 's' : ''} sur ${OP_CARDS.length}`
+    : '';
+
+  renderOP(filtered);
+}
+
 // ═══════════════════════════════════════
 // ONE PIECE — rendu depuis Supabase
 // ═══════════════════════════════════════
 let opReady = false;
 
-function renderOP() {
+function renderOP(cards) {
+  const cardsToRender = cards || OP_CARDS;
   const g = document.getElementById('op-grid');
   g.innerHTML = '';
-  if (!OP_CARDS.length) return;
+  if (!cardsToRender.length) {
+    g.innerHTML = '<div class="lstate" style="color:var(--muted)">Aucune carte ne correspond aux filtres.</div>';
+    return;
+  }
   const cols = { sec:'#ff3c3c', sec_manga:'#ff3c3c', sec_alt:'#ff6b6b', sr:'#f5c842', sp:'#ff8c00', rare:'#c8f135', uc:'#60a5fa', common:'#5a6278', leader:'#a855f7', golden:'#ffd700' };
-  OP_CARDS.forEach((c, i) => {
+  cardsToRender.forEach((c, i) => {
     const rarity = c.rarity || 'common';
     const col = cols[rarity] || '#5a6278';
     const emoji = c.emoji || '🃏';
