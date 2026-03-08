@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <title>MyVault — Collection</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Noto+Sans+JP:wght@700&family=Noto+Sans+KR:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -57,6 +57,19 @@
   .fbtn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.05em;padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;}
   .fbtn:hover,.fbtn.active{border-color:rgba(200,241,53,.3);color:var(--accent);background:rgba(200,241,53,.05);}
   .fsep{flex:1;}
+  .fchk{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);cursor:pointer;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:all .2s;user-select:none;}
+  .fchk:hover{border-color:rgba(200,241,53,.3);color:var(--accent);}
+  .fchk input[type=checkbox]{accent-color:var(--accent);cursor:pointer;}
+  .fchk:has(input:checked){border-color:rgba(200,241,53,.4);color:var(--accent);background:rgba(200,241,53,.05);}
+  /* Drawer */
+  #filter-drawer.open{transform:translateX(0)!important;}
+  .drawer-chk{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;cursor:pointer;transition:all .2s;background:var(--surface);}
+  .drawer-chk:hover{border-color:rgba(200,241,53,.3);background:rgba(200,241,53,.03);}
+  .drawer-chk:has(input:checked){border-color:rgba(200,241,53,.4);background:rgba(200,241,53,.06);}
+  .drawer-chk input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:14px;height:14px;flex-shrink:0;}
+  .drawer-chk span{font-family:'DM Mono',monospace;font-size:11px;color:var(--text);flex:1;}
+  .drawer-chk .chk-desc{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-left:auto;}
+  #drawer-btn.active{border-color:rgba(200,241,53,.4);color:var(--accent);background:rgba(200,241,53,.05);}
   .shdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .stitle{font-size:11px;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.05em;text-transform:uppercase;}
 
@@ -256,16 +269,125 @@
 
   <!-- SNS -->
   <div class="panel" id="panel-sns">
-    <div class="filters">
-      <button class="fbtn active" onclick="tf(this)">Tous</button>
-      <button class="fbtn" onclick="tf(this)">Hold</button>
-      <button class="fbtn" onclick="tf(this)">En vente</button>
-      <div class="fsep"></div>
-      <div style="display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">
-        <div class="spin" id="sol-spin" style="width:10px;height:10px;border-width:1.5px"></div>
-        <span id="sol-status">Connexion Solana...</span>
+
+    <!-- Barre top : statut + recherche + bouton filtres + tri -->
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+
+      <!-- Statut -->
+      <div style="display:flex;gap:6px">
+        <button class="fbtn active" id="sf-all"   onclick="filterStatus('all',this)">Tous</button>
+        <button class="fbtn"        id="sf-hold"  onclick="filterStatus('hold',this)">Hold</button>
+        <button class="fbtn"        id="sf-listed" onclick="filterStatus('listed',this)">En vente</button>
+      </div>
+
+      <!-- Recherche -->
+      <input id="dom-search" type="text" placeholder="🔍 Rechercher..." oninput="applyFilters()"
+        style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;outline:none">
+
+      <!-- Bouton filtres -->
+      <button id="drawer-btn" onclick="toggleDrawer()"
+        style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 14px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;white-space:nowrap">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <line x1="2" y1="4" x2="14" y2="4"/><line x1="4" y1="8" x2="12" y2="8"/><line x1="6" y1="12" x2="10" y2="12"/>
+        </svg>
+        <span>Filtres</span>
+        <span id="filter-badge" style="display:none;background:var(--accent);color:#000;border-radius:99px;font-size:9px;padding:1px 6px;font-weight:700"></span>
+      </button>
+
+      <!-- Tri -->
+      <select id="dom-sort" onchange="applyFilters()"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer">
+        <option value="listed-first">En vente en premier</option>
+        <option value="alpha">A → Z</option>
+        <option value="alpha-desc">Z → A</option>
+        <option value="len-asc">Longueur ↑</option>
+        <option value="len-desc">Longueur ↓</option>
+        <option value="price-asc">Prix ↑</option>
+        <option value="price-desc">Prix ↓</option>
+      </select>
+
+      <!-- Solana status -->
+      <div style="display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto">
+        <div class="spin" id="sol-spin" style="width:9px;height:9px;border-width:1.5px"></div>
+        <span id="sol-status">Connexion...</span>
       </div>
     </div>
+
+    <!-- Info count -->
+    <div id="dom-filter-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:16px;min-height:14px"></div>
+
+    <!-- DRAWER OVERLAY -->
+    <div id="filter-overlay" onclick="closeDrawer()"
+      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:300"></div>
+
+    <!-- DRAWER PANEL -->
+    <div id="filter-drawer"
+      style="position:fixed;right:0;top:0;bottom:0;width:320px;max-width:90vw;background:#0e1117;border-left:1px solid var(--border);z-index:301;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden">
+
+      <!-- Drawer header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 22px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <span style="font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.1em;color:var(--text)">FILTRES AVANCÉS</span>
+        <button onclick="closeDrawer()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px">×</button>
+      </div>
+
+      <!-- Drawer body scrollable -->
+      <div style="flex:1;overflow-y:auto;padding:22px">
+
+        <!-- Longueur -->
+        <div style="margin-bottom:24px">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em;margin-bottom:12px">LONGUEUR DE CARACTÈRES</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input id="len-min" type="number" min="1" max="50" placeholder="Min" oninput="updateBadge()"
+              style="width:70px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;text-align:center">
+            <span style="color:var(--muted);font-size:14px">—</span>
+            <input id="len-max" type="number" min="1" max="50" placeholder="Max" oninput="updateBadge()"
+              style="width:70px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;text-align:center">
+            <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">chars</span>
+          </div>
+        </div>
+
+        <!-- Charset -->
+        <div style="margin-bottom:24px">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em;margin-bottom:12px">CHARSET</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label class="drawer-chk"><input type="checkbox" value="pure-letters" onchange="updateBadge()"><span>Pure lettres</span><span class="chk-desc">a-z uniquement</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="pure-digits" onchange="updateBadge()"><span>Pure chiffres</span><span class="chk-desc">0-9 uniquement</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="letters" onchange="updateBadge()"><span>Contient des lettres</span><span class="chk-desc">inclut a-z</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="digits" onchange="updateBadge()"><span>Contient des chiffres</span><span class="chk-desc">inclut 0-9</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="emoji" onchange="updateBadge()"><span>Contient un emoji</span><span class="chk-desc">🔥💎 etc.</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="hyphen" onchange="updateBadge()"><span>Contient un trait d'union</span><span class="chk-desc">ex: my-domain</span></label>
+          </div>
+        </div>
+
+        <!-- Catégories -->
+        <div style="margin-bottom:24px">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em;margin-bottom:12px">CATÉGORIES</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <label class="drawer-chk"><input type="checkbox" value="cat-1" onchange="updateBadge()"><span>1 caractère</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="cat-2" onchange="updateBadge()"><span>2 caractères</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="cat-3" onchange="updateBadge()"><span>3 caractères</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="cat-4" onchange="updateBadge()"><span>4 caractères</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="cat-5plus" onchange="updateBadge()"><span>5+ caractères</span></label>
+            <label class="drawer-chk"><input type="checkbox" value="cat-word" onchange="updateBadge()"><span>1 mot</span></label>
+            <label class="drawer-chk" style="grid-column:span 2"><input type="checkbox" value="cat-multi" onchange="updateBadge()"><span>Multi-mots (avec tiret)</span></label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Drawer footer -->
+      <div style="padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0">
+        <button onclick="resetFilters()"
+          style="flex:1;background:transparent;border:1px solid var(--border);border-radius:9px;padding:11px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s">
+          Réinitialiser
+        </button>
+        <button onclick="applyAndClose()"
+          style="flex:2;background:var(--accent);border:none;border-radius:9px;padding:11px;color:#000;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s">
+          Appliquer ↵
+        </button>
+      </div>
+    </div>
+
     <div id="dom-container"><div class="lstate"><div class="spin"></div>Récupération des domaines onchain...</div></div>
   </div>
 </div>
@@ -674,32 +796,19 @@ async function fetchWalletWithListings(w) {
 }
 
 function renderSNS(walletResults) {
-  const c = document.getElementById('dom-container');
-  c.innerHTML = '';
-  let any = false;
-  walletResults.forEach((doms, wi) => {
-    if (!doms.length) return;
-    any = true;
-    const w = WALLETS[wi];
-    const short = w.addr.slice(0, 6) + '...' + w.addr.slice(-4);
-    const listedCount = doms.filter(d => d.listed).length;
-    const sec = document.createElement('div');
-    sec.className = 'wsec';
-    sec.innerHTML = `
-      <div class="whdr">
-        <div style="width:26px;height:26px;background:rgba(153,69,255,.14);border:1px solid rgba(153,69,255,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px">🔗</div>
-        <span class="wlbl">${w.label}</span>
-        <span class="waddr">${short}</span>
-        <span class="wcnt">${doms.length} domaine${doms.length > 1 ? 's' : ''}${listedCount ? ' · <span style="color:var(--accent)">' + listedCount + ' en vente</span>' : ''}</span>
-      </div>
-      <div class="dgrid" id="dg${wi}"></div>`;
-    c.appendChild(sec);
-    const grid = document.getElementById(`dg${wi}`);
-    // Trier : listés en premier
-    const sorted = [...doms].sort((a, b) => (b.listed ? 1 : 0) - (a.listed ? 1 : 0));
-    sorted.forEach((d, i) => buildDomainCard(grid, d, i));
-  });
-  if (!any) renderSNSFallback();
+  // Stocker tous les domaines à plat pour les filtres
+  allDomainsFlat = walletResults.flat().map(d => ({
+    ...d,
+    priceRaw: d.price ? parseFloat(d.price.replace(/[^0-9.]/g, '')) || 0 : 0
+  }));
+
+  const total = allDomainsFlat.length;
+  const listedCount = allDomainsFlat.filter(d => d.listed).length;
+  const info = document.getElementById('dom-filter-info');
+  if (info) info.textContent = `${total} domaine${total > 1 ? 's' : ''} · ${listedCount} en vente`;
+
+  // Render initial
+  applyFilters();
 }
 
 function buildDomainCard(grid, d, i) {
@@ -952,6 +1061,182 @@ function switchTab(id, el) {
   document.getElementById('panel-' + id).classList.add('active');
   if (id === 'op' && !opReady) { opReady = true; renderOP(); }
   if (id === 'sns' && !snsLoaded) { snsLoaded = true; loadWallets().then(() => loadSNS()); }
+}
+
+// ═══════════════════════════════════════
+// DRAWER
+// ═══════════════════════════════════════
+function toggleDrawer() {
+  const d = document.getElementById('filter-drawer');
+  const o = document.getElementById('filter-overlay');
+  const open = d.classList.contains('open');
+  if (open) closeDrawer(); else openDrawer();
+}
+function openDrawer() {
+  document.getElementById('filter-drawer').classList.add('open');
+  document.getElementById('filter-overlay').style.display = 'block';
+  document.getElementById('drawer-btn').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('filter-drawer').classList.remove('open');
+  document.getElementById('filter-overlay').style.display = 'none';
+  document.getElementById('drawer-btn').classList.remove('active');
+  document.body.style.overflow = '';
+}
+function applyAndClose() {
+  applyFilters();
+  closeDrawer();
+}
+function resetFilters() {
+  document.querySelectorAll('#filter-drawer input[type=checkbox]').forEach(c => c.checked = false);
+  document.getElementById('len-min').value = '';
+  document.getElementById('len-max').value = '';
+  updateBadge();
+  applyFilters();
+}
+function updateBadge() {
+  const checked = document.querySelectorAll('#filter-drawer input[type=checkbox]:checked').length;
+  const lenMin = document.getElementById('len-min')?.value;
+  const lenMax = document.getElementById('len-max')?.value;
+  const total = checked + (lenMin || lenMax ? 1 : 0);
+  const badge = document.getElementById('filter-badge');
+  if (total > 0) {
+    badge.textContent = total;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════
+// FILTRES DOMAINES
+// ═══════════════════════════════════════
+let allDomainsFlat = []; // tous les domaines à plat
+let currentStatusFilter = 'all';
+
+function filterStatus(status, btn) {
+  currentStatusFilter = status;
+  document.querySelectorAll('#panel-sns .fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function getCheckedValues(name) {
+  return [...document.querySelectorAll(`#panel-sns input[type=checkbox][value^="${name}"]`)]
+    .filter(c => c.checked).map(c => c.value);
+}
+
+function detectCharset(name) {
+  const hasLetters = /[a-zA-Z]/.test(name);
+  const hasDigits = /[0-9]/.test(name);
+  const hasEmoji = /\p{Emoji_Presentation}/u.test(name);
+  const hasHyphen = /-/.test(name);
+  return { hasLetters, hasDigits, hasEmoji, hasHyphen,
+    pureDigits: /^[0-9]+$/.test(name),
+    pureLetters: /^[a-zA-Z]+$/.test(name) };
+}
+
+function detectCategory(name) {
+  const len = name.replace(/-/g, ' ').trim().length;
+  const words = name.split('-').filter(Boolean);
+  if (len === 1) return 'cat-1';
+  if (len === 2) return 'cat-2';
+  if (len === 3) return 'cat-3';
+  if (len === 4) return 'cat-4';
+  if (words.length > 1) return 'cat-multi';
+  if (len >= 5) return len >= 5 ? 'cat-5plus' : 'cat-word';
+  return 'cat-word';
+}
+
+function applyFilters() {
+  if (!allDomainsFlat.length) return;
+
+  const search = (document.getElementById('dom-search')?.value || '').toLowerCase().trim();
+  const lenMin = parseInt(document.getElementById('len-min')?.value) || 0;
+  const lenMax = parseInt(document.getElementById('len-max')?.value) || 999;
+  const sort = document.getElementById('dom-sort')?.value || 'listed-first';
+
+  const charsetChecks = [...document.querySelectorAll('#filter-drawer input[type=checkbox]:checked')]
+    .filter(c => !c.value.startsWith('cat-')).map(c => c.value);
+  const catChecks = [...document.querySelectorAll('#filter-drawer input[type=checkbox]:checked')]
+    .filter(c => c.value.startsWith('cat-')).map(c => c.value);
+
+  let filtered = allDomainsFlat.filter(d => {
+    const name = d.name;
+    const len = name.length;
+
+    // Statut
+    if (currentStatusFilter === 'hold' && d.listed) return false;
+    if (currentStatusFilter === 'listed' && !d.listed) return false;
+
+    // Recherche
+    if (search && !name.toLowerCase().includes(search)) return false;
+
+    // Longueur
+    if (len < lenMin || len > lenMax) return false;
+
+    // Charset
+    if (charsetChecks.length) {
+      const cs = detectCharset(name);
+      const match = charsetChecks.every(v => {
+        if (v === 'letters') return cs.hasLetters;
+        if (v === 'digits') return cs.hasDigits;
+        if (v === 'emoji') return cs.hasEmoji;
+        if (v === 'hyphen') return cs.hasHyphen;
+        if (v === 'pure-digits') return cs.pureDigits;
+        if (v === 'pure-letters') return cs.pureLetters;
+        return true;
+      });
+      if (!match) return false;
+    }
+
+    // Catégories
+    if (catChecks.length) {
+      const cat = detectCategory(name);
+      // cat-5plus et cat-word sont compatibles pour les mots longs
+      const matchCat = catChecks.some(v => {
+        if (v === cat) return true;
+        if (v === 'cat-word' && cat === 'cat-5plus') return true;
+        return false;
+      });
+      if (!matchCat) return false;
+    }
+
+    return true;
+  });
+
+  // Tri
+  filtered.sort((a, b) => {
+    if (sort === 'listed-first') return (b.listed ? 1 : 0) - (a.listed ? 1 : 0);
+    if (sort === 'alpha') return a.name.localeCompare(b.name);
+    if (sort === 'alpha-desc') return b.name.localeCompare(a.name);
+    if (sort === 'len-asc') return a.name.length - b.name.length;
+    if (sort === 'len-desc') return b.name.length - a.name.length;
+    if (sort === 'price-asc') return (parseFloat(a.priceRaw)||0) - (parseFloat(b.priceRaw)||0);
+    if (sort === 'price-desc') return (parseFloat(b.priceRaw)||0) - (parseFloat(a.priceRaw)||0);
+    return 0;
+  });
+
+  // Info count
+  const info = document.getElementById('dom-filter-info');
+  if (info) info.textContent = `${filtered.length} domaine${filtered.length > 1 ? 's' : ''} affiché${filtered.length > 1 ? 's' : ''} sur ${allDomainsFlat.length}`;
+
+  // Re-render flat (sans regroupement par wallet pour les filtres)
+  renderFiltered(filtered);
+}
+
+function renderFiltered(doms) {
+  const c = document.getElementById('dom-container');
+  c.innerHTML = '';
+  if (!doms.length) {
+    c.innerHTML = '<div class="lstate" style="color:var(--muted)">Aucun domaine ne correspond aux filtres.</div>';
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'dgrid';
+  c.appendChild(grid);
+  doms.forEach((d, i) => buildDomainCard(grid, d, i));
 }
 
 function tf(btn) {
