@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Fond noir -->
+  <rect width="32" height="32" rx="6" fill="#0a0a0f"/>
+  <!-- Skull principal -->
+  <ellipse cx="16" cy="13" rx="9" ry="9" fill="#c8f135"/>
+  <!-- Yeux -->
+  <ellipse cx="12.5" cy="12" rx="2.5" ry="2.8" fill="#0a0a0f"/>
+  <ellipse cx="19.5" cy="12" rx="2.5" ry="2.8" fill="#0a0a0f"/>
+  <!-- Pupilles -->
+  <ellipse cx="12.5" cy="12.2" rx="1.2" ry="1.4" fill="#c8f135"/>
+  <ellipse cx="19.5" cy="12.2" rx="1.2" ry="1.4" fill="#c8f135"/>
+  <!-- Nez -->
+  <ellipse cx="16" cy="15.5" rx="1.2" ry="1" fill="#0a0a0f"/>
+  <!-- Mâchoire -->
+  <rect x="10" y="18" width="12" height="5" rx="2" fill="#c8f135"/>
+  <!-- Dents -->
+  <rect x="12" y="18" width="2" height="3" rx="0.5" fill="#0a0a0f"/>
+  <rect x="15" y="18" width="2" height="3" rx="0.5" fill="#0a0a0f"/>
+  <rect x="18" y="18" width="2" height="3" rx="0.5" fill="#0a0a0f"/>
+  <!-- Os croisés -->
+  <line x1="7" y1="27" x2="25" y2="25" stroke="#c8f135" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="7" y1="25" x2="25" y2="27" stroke="#c8f135" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
