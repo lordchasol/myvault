@@ -284,6 +284,8 @@
               <option value="leader">L — Leader</option>
               <option value="sr">SR — Super Rare</option>
               <option value="sec">SEC — Secret Rare</option>
+              <option value="sec_manga">SEC Manga</option>
+              <option value="sec_alt">SEC Alt Art</option>
               <option value="sp">SP — Special Rare</option>
               <option value="golden">Golden DON!!</option>
             </select>
@@ -990,14 +992,16 @@ async function searchOpCard() {
       <img src="${v.url}" style="width:100%;display:block"/>
       <div style="padding:10px;display:flex;flex-direction:column;gap:6px">
         <select id="op-rarity-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;width:100%">
-          <option value="common"  ${v.rarity==='common' ?'selected':''}>C — Commun</option>
-          <option value="uc"      ${v.rarity==='uc'     ?'selected':''}>UC — Peu commun</option>
-          <option value="rare"    ${v.rarity==='rare'   ?'selected':''}>R — Rare</option>
-          <option value="leader"  ${v.rarity==='leader' ?'selected':''}>L — Leader</option>
-          <option value="sr"      ${v.rarity==='sr'     ?'selected':''}>SR — Super Rare</option>
-          <option value="sec"     ${v.rarity==='sec'    ?'selected':''}>SEC — Secret Rare</option>
-          <option value="sp"      ${v.rarity==='sp'     ?'selected':''}>SP — Special Rare</option>
-          <option value="golden"  ${v.rarity==='golden' ?'selected':''}>Golden DON!!</option>
+          <option value="common"  ${v.rarity==='common'   ?'selected':''}>C — Commun</option>
+          <option value="uc"      ${v.rarity==='uc'       ?'selected':''}>UC — Peu commun</option>
+          <option value="rare"    ${v.rarity==='rare'     ?'selected':''}>R — Rare</option>
+          <option value="leader"  ${v.rarity==='leader'   ?'selected':''}>L — Leader</option>
+          <option value="sr"      ${v.rarity==='sr'       ?'selected':''}>SR — Super Rare</option>
+          <option value="sec"     ${v.rarity==='sec'      ?'selected':''}>SEC — Secret Rare</option>
+          <option value="sec_manga" ${v.rarity==='sec_manga'?'selected':''}>SEC Manga</option>
+          <option value="sec_alt"  ${v.rarity==='sec_alt' ?'selected':''}>SEC Alt Art</option>
+          <option value="sp"      ${v.rarity==='sp'       ?'selected':''}>SP — Special Rare</option>
+          <option value="golden"  ${v.rarity==='golden'   ?'selected':''}>Golden DON!!</option>
         </select>
         <input id="op-price-${i}" class="minput" placeholder="Prix (ex: € 15)" style="margin:0;font-size:11px"/>
         <button class="btn btn-primary" style="width:100%;font-size:11px;padding:8px" id="op-add-btn-${i}">+ Ajouter</button>
