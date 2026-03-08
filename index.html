@@ -439,7 +439,7 @@ async function loadOpCards() {
   if (tcOp) tcOp.textContent = n;
 }
 
-const RL = { common:'C', uc:'UC', rare:'R', leader:'L', sr:'SR', sec:'SEC', sp:'SP', golden:'GOLDEN', ex:'EX', holo:'HOLO', promo:'PROMO' };
+const RL = { common:'C', uc:'UC', rare:'R', leader:'L', sr:'SR', sec:'SEC', sec_manga:'SEC Manga', sec_alt:'SEC Alt', sp:'SP', golden:'GOLDEN', ex:'EX', holo:'HOLO', promo:'PROMO' };
 
 // ═══════════════════════════════════════
 // POKÉMON — rendu instantané
@@ -542,7 +542,7 @@ function renderOP() {
   const g = document.getElementById('op-grid');
   g.innerHTML = '';
   if (!OP_CARDS.length) return;
-  const cols = { sec:'#ff3c3c', sr:'#f5c842', sp:'#ff8c00', rare:'#c8f135', uc:'#60a5fa', common:'#5a6278', leader:'#a855f7', golden:'#ffd700' };
+  const cols = { sec:'#ff3c3c', sec_manga:'#ff3c3c', sec_alt:'#ff6b6b', sr:'#f5c842', sp:'#ff8c00', rare:'#c8f135', uc:'#60a5fa', common:'#5a6278', leader:'#a855f7', golden:'#ffd700' };
   OP_CARDS.forEach((c, i) => {
     const rarity = c.rarity || 'common';
     const col = cols[rarity] || '#5a6278';
